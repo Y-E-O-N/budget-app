@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- 배포 방식: ad-hoc (테스트용), app-store (앱스토어) -->
+    <key>method</key>
+    <string>ad-hoc</string>
+
+    <!-- 팀 ID (Apple Developer에서 확인) -->
+    <key>teamID</key>
+    <string>YOUR_TEAM_ID</string>
+
+    <!-- 앱 번들 ID와 프로비저닝 프로파일 매핑 -->
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>com.example.budgetApp</key>
+        <string>YOUR_PROVISION_PROFILE_NAME</string>
+    </dict>
+
+    <!-- 비트코드 비활성화 -->
+    <key>compileBitcode</key>
+    <false/>
+</dict>
+</plist>

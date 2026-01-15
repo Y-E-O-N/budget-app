@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">가계부</string>
+
+    <!-- 위젯 설명 -->
+    <string name="widget_small_description">예산 잔액을 간단히 표시합니다</string>
+    <string name="widget_medium_description">예산의 지출과 잔액을 표시합니다</string>
+    <string name="widget_large_description">전체 카테고리별 예산 현황을 표시합니다</string>
+
+    <!-- 위젯 이름 -->
+    <string name="widget_small_name">잔액</string>
+    <string name="widget_medium_name">예산 현황</string>
+    <string name="widget_large_name">카테고리별 현황</string>
+</resources>

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Large Widget: 카테고리별 상세 (최대 5개) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/widget_background">
+
+    <!-- 헤더 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="예산 현황"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#333333"
+        android:layout_marginBottom="12dp" />
+
+    <!-- 카테고리 1 -->
+    <include
+        android:id="@+id/category_1"
+        layout="@layout/widget_category_item"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <!-- 카테고리 2 -->
+    <include
+        android:id="@+id/category_2"
+        layout="@layout/widget_category_item"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp" />
+
+    <!-- 카테고리 3 -->
+    <include
+        android:id="@+id/category_3"
+        layout="@layout/widget_category_item"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp" />
+
+    <!-- 카테고리 4 -->
+    <include
+        android:id="@+id/category_4"
+        layout="@layout/widget_category_item"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp" />
+
+    <!-- 카테고리 5 -->
+    <include
+        android:id="@+id/category_5"
+        layout="@layout/widget_category_item"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp" />
+
+</LinearLayout>

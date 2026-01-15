@@ -1,0 +1,110 @@
+# =============================================================================
+# GitHub Actions - iOS 빌드 워크플로우
+# =============================================================================
+# Mac 없이 GitHub의 macOS runner를 사용해 iOS 앱을 빌드합니다.
+# =============================================================================
+
+name: iOS Build
+
+# 워크플로우 실행 조건
+on:
+  # main 브랜치에 push할 때 실행
+  push:
+    branches: [main]
+  # Pull Request 시 실행
+  pull_request:
+    branches: [main]
+  # 수동 실행 가능
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    # macOS 최신 버전 사용 (Xcode 포함)
+    runs-on: macos-latest
+
+    steps:
+      # 1. 코드 체크아웃
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Flutter 설치
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+          cache: true
+
+      # 3. 의존성 설치
+      - name: Install dependencies
+        run: flutter pub get
+
+      # 4. iOS 빌드 (서명 없이 - 시뮬레이터용)
+      - name: Build iOS (No Codesign)
+        run: flutter build ios --release --no-codesign
+
+      # 5. 빌드 결과물 업로드
+      - name: Upload iOS Build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build
+          path: build/ios/iphoneos/Runner.app
+          retention-days: 7
+
+  # =============================================================================
+  # 실제 기기 설치용 빌드 (IPA 파일 생성)
+  # Apple Developer 계정 필요
+  # =============================================================================
+  build-ipa:
+    runs-on: macos-latest
+    # 수동 실행 시에만 IPA 빌드
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+          cache: true
+
+      # Apple 인증서 설치 (Secrets에 저장 필요)
+      - name: Install Apple Certificate
+        env:
+          P12_BASE64: ${{ secrets.P12_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          PROVISION_PROFILE_BASE64: ${{ secrets.PROVISION_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          # 임시 키체인 생성
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # 인증서 가져오기
+          echo -n "$P12_BASE64" | base64 --decode -o $RUNNER_TEMP/certificate.p12
+          security import $RUNNER_TEMP/certificate.p12 -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+          # 프로비저닝 프로파일 설치
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo -n "$PROVISION_PROFILE_BASE64" | base64 --decode -o ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # IPA 파일 생성
+      - name: Build IPA
+        run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+
+      # IPA 파일 업로드
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-ipa
+          path: build/ios/ipa/*.ipa
+          retention-days: 14

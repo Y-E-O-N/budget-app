@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 카테고리 아이템 (Large 위젯용) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical">
+
+    <!-- 카테고리명 -->
+    <TextView
+        android:id="@+id/category_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="식비"
+        android:textSize="13sp"
+        android:textColor="#333333"
+        android:ellipsize="end"
+        android:maxLines="1" />
+
+    <!-- 지출/예산 -->
+    <TextView
+        android:id="@+id/category_spent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="₩300,000"
+        android:textSize="12sp"
+        android:textColor="#666666" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text=" / "
+        android:textSize="12sp"
+        android:textColor="#999999" />
+
+    <TextView
+        android:id="@+id/category_budget"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="₩500,000"
+        android:textSize="12sp"
+        android:textColor="#666666" />
+
+    <!-- 잔액 -->
+    <TextView
+        android:id="@+id/category_remaining"
+        android:layout_width="80dp"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:text="₩200,000"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:textColor="#000000" />
+
+</LinearLayout>
