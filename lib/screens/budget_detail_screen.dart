@@ -218,7 +218,7 @@ class BudgetDetailScreen extends StatelessWidget {
         ]),
         const SizedBox(height: 8),
         if (subBudgets.isNotEmpty) ...[
-          DropdownButtonFormField<String>(initialValue: selectedSubBudgetId, decoration: InputDecoration(labelText: loc.tr('subBudgetOptional'), border: const OutlineInputBorder()), items: [DropdownMenuItem(value: null, child: Text(loc.tr('notSelected'))), ...subBudgets.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name)))], onChanged: (value) => setState(() => selectedSubBudgetId = value)),
+          DropdownButtonFormField<String?>(value: selectedSubBudgetId, decoration: InputDecoration(labelText: loc.tr('subBudgetOptional'), border: const OutlineInputBorder()), items: [DropdownMenuItem(value: null, child: Text(loc.tr('notSelected'))), ...subBudgets.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name)))], onChanged: (value) => setState(() => selectedSubBudgetId = value)),
           const SizedBox(height: 16),
         ],
         TextField(controller: memoController, decoration: InputDecoration(labelText: loc.tr('memo'), hintText: loc.tr('memoHint'), border: const OutlineInputBorder())),

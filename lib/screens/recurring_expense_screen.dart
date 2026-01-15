@@ -274,27 +274,27 @@ class RecurringExpenseScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text(loc.tr('repeatCycle'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                   const SizedBox(height: 8),
-                  RadioGroup<RepeatType>(
-                    groupValue: repeatType,
-                    onChanged: (v) => setDialogState(() => repeatType = v!),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: RadioListTile<RepeatType>(
-                            title: Text(loc.tr('monthly'), style: const TextStyle(fontSize: 14)),
-                            value: RepeatType.monthly,
-                            contentPadding: EdgeInsets.zero,
-                          ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: RadioListTile<RepeatType>(
+                          title: Text(loc.tr('monthly'), style: const TextStyle(fontSize: 14)),
+                          value: RepeatType.monthly,
+                          groupValue: repeatType,
+                          onChanged: (v) => setDialogState(() => repeatType = v!),
+                          contentPadding: EdgeInsets.zero,
                         ),
-                        Expanded(
-                          child: RadioListTile<RepeatType>(
-                            title: Text(loc.tr('weekly'), style: const TextStyle(fontSize: 14)),
-                            value: RepeatType.weekly,
-                            contentPadding: EdgeInsets.zero,
-                          ),
+                      ),
+                      Expanded(
+                        child: RadioListTile<RepeatType>(
+                          title: Text(loc.tr('weekly'), style: const TextStyle(fontSize: 14)),
+                          value: RepeatType.weekly,
+                          groupValue: repeatType,
+                          onChanged: (v) => setDialogState(() => repeatType = v!),
+                          contentPadding: EdgeInsets.zero,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
 
                   // 날짜/요일 선택

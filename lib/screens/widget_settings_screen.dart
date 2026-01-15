@@ -218,7 +218,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
         children: [
           // 예산 선택
           DropdownButtonFormField<String?>(
-            initialValue: _smallBudgetId,
+            value: _smallBudgetId,
             decoration: InputDecoration(
               labelText: loc.tr('selectBudget'),
               border: const OutlineInputBorder(),
@@ -239,7 +239,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
           if (_smallBudgetId != null && subBudgets.isNotEmpty) ...[
             const SizedBox(height: 16),
             DropdownButtonFormField<String?>(
-              initialValue: _smallSubBudgetId,
+              value: _smallSubBudgetId,
               decoration: InputDecoration(
                 labelText: loc.tr('selectSubBudgetOptional'),
                 border: const OutlineInputBorder(),
@@ -265,7 +265,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: DropdownButtonFormField<String?>(
-        initialValue: _mediumBudgetId,
+        value: _mediumBudgetId,
         decoration: InputDecoration(
           labelText: loc.tr('selectBudget'),
           border: const OutlineInputBorder(),

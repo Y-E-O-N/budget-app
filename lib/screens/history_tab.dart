@@ -547,7 +547,7 @@ class _HistoryTabState extends State<HistoryTab> {
                 const SizedBox(height: 8),
                 if (subBudgets.isNotEmpty) ...[
                   DropdownButtonFormField<String?>(
-                    initialValue: selectedSubBudgetId,
+                    value: selectedSubBudgetId,
                     decoration: InputDecoration(labelText: loc.tr('subBudgetOptional'), border: const OutlineInputBorder()),
                     items: [
                       DropdownMenuItem<String?>(value: null, child: Text(loc.tr('notSelected'))),

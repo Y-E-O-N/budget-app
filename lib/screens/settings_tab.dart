@@ -416,16 +416,12 @@ class SettingsTab extends StatelessWidget {
       context: context,
       builder: (context) => SimpleDialog(
         title: Text(loc.tr('selectCurrency')),
-        children: [
-          RadioGroup<String>(
-            groupValue: settings.currency,
-            onChanged: (value) { if (value != null) { settings.setCurrency(value); Navigator.pop(context); } },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: currencies.map((c) => RadioListTile<String>(title: Text(c['name']!), value: c['symbol']!)).toList(),
-            ),
-          ),
-        ],
+        children: currencies.map((c) => RadioListTile<String>(
+          title: Text(c['name']!),
+          value: c['symbol']!,
+          groupValue: settings.currency,
+          onChanged: (value) { if (value != null) { settings.setCurrency(value); Navigator.pop(context); } },
+        )).toList(),
       ),
     );
   }
@@ -435,16 +431,12 @@ class SettingsTab extends StatelessWidget {
       context: context,
       builder: (context) => SimpleDialog(
         title: Text(loc.tr('selectStartDay')),
-        children: [
-          RadioGroup<String>(
-            groupValue: settings.startDayOfWeek,
-            onChanged: (value) { if (value != null) { settings.setStartDayOfWeek(value); Navigator.pop(context); } },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: days.entries.map((e) => RadioListTile<String>(title: Text(e.value), value: e.key)).toList(),
-            ),
-          ),
-        ],
+        children: days.entries.map((e) => RadioListTile<String>(
+          title: Text(e.value),
+          value: e.key,
+          groupValue: settings.startDayOfWeek,
+          onChanged: (value) { if (value != null) { settings.setStartDayOfWeek(value); Navigator.pop(context); } },
+        )).toList(),
       ),
     );
   }
@@ -489,16 +481,12 @@ class SettingsTab extends StatelessWidget {
       context: context,
       builder: (context) => SimpleDialog(
         title: Text(loc.tr('selectLanguage')),
-        children: [
-          RadioGroup<String>(
-            groupValue: settings.language,
-            onChanged: (value) { if (value != null) { settings.setLanguage(value); Navigator.pop(context); } },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: languages.entries.map((e) => RadioListTile<String>(title: Text(e.value), value: e.key)).toList(),
-            ),
-          ),
-        ],
+        children: languages.entries.map((e) => RadioListTile<String>(
+          title: Text(e.value),
+          value: e.key,
+          groupValue: settings.language,
+          onChanged: (value) { if (value != null) { settings.setLanguage(value); Navigator.pop(context); } },
+        )).toList(),
       ),
     );
   }
@@ -536,16 +524,12 @@ class SettingsTab extends StatelessWidget {
       context: context,
       builder: (context) => SimpleDialog(
         title: Text(loc.tr('selectThemeMode')),
-        children: [
-          RadioGroup<String>(
-            groupValue: settings.themeModeSetting,
-            onChanged: (value) { if (value != null) { settings.setThemeMode(value); Navigator.pop(context); } },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: modes.entries.map((e) => RadioListTile<String>(title: Text(e.value), value: e.key)).toList(),
-            ),
-          ),
-        ],
+        children: modes.entries.map((e) => RadioListTile<String>(
+          title: Text(e.value),
+          value: e.key,
+          groupValue: settings.themeModeSetting,
+          onChanged: (value) { if (value != null) { settings.setThemeMode(value); Navigator.pop(context); } },
+        )).toList(),
       ),
     );
   }
@@ -555,16 +539,12 @@ class SettingsTab extends StatelessWidget {
       context: context,
       builder: (context) => SimpleDialog(
         title: Text(loc.tr('selectFontSize')),
-        children: [
-          RadioGroup<double>(
-            groupValue: settings.fontSizeScale,
-            onChanged: (value) { if (value != null) { settings.setFontSizeScale(value); Navigator.pop(context); } },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: sizes.entries.map((e) => RadioListTile<double>(title: Text(e.value), value: e.key)).toList(),
-            ),
-          ),
-        ],
+        children: sizes.entries.map((e) => RadioListTile<double>(
+          title: Text(e.value),
+          value: e.key,
+          groupValue: settings.fontSizeScale,
+          onChanged: (value) { if (value != null) { settings.setFontSizeScale(value); Navigator.pop(context); } },
+        )).toList(),
       ),
     );
   }
