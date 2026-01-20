@@ -166,13 +166,13 @@ class _BudgetTabState extends State<BudgetTab> {
           2: FlexColumnWidth(1),
         },
         children: [
-          // 헤더 행
+          // 헤더 행 (#19: 중앙 정렬)
           TableRow(
             decoration: BoxDecoration(color: _SheetStyle.headerBg(context)),
             children: [
-              _buildCell(loc.tr('budget'), isHeader: true, context: context),
-              _buildCell(loc.tr('used'), isHeader: true, context: context),
-              _buildCell(loc.tr('remaining'), isHeader: true, context: context),
+              _buildCell(loc.tr('budget'), isHeader: true, context: context, align: TextAlign.center),
+              _buildCell(loc.tr('used'), isHeader: true, context: context, align: TextAlign.center),
+              _buildCell(loc.tr('remaining'), isHeader: true, context: context, align: TextAlign.center),
             ],
           ),
           // 데이터 행
@@ -219,7 +219,7 @@ class _BudgetTabState extends State<BudgetTab> {
               TableRow(
                 decoration: BoxDecoration(color: _SheetStyle.headerBg(context)),
                 children: [
-                  _buildSortableHeaderCell(loc.tr('budgetName'), BudgetSortOption.name, BudgetSortOption.nameDesc, context),
+                  _buildSortableHeaderCell(loc.tr('budgetName'), BudgetSortOption.name, BudgetSortOption.nameDesc, context, align: TextAlign.center),  // #19: 중앙 정렬
                   _buildSortableHeaderCell(loc.tr('budget'), BudgetSortOption.amount, BudgetSortOption.amountDesc, context, align: TextAlign.center),
                   _buildSortableHeaderCell(loc.tr('used'), BudgetSortOption.used, BudgetSortOption.usedDesc, context, align: TextAlign.center),
                   _buildSortableHeaderCell(loc.tr('remaining'), BudgetSortOption.remaining, BudgetSortOption.remainingDesc, context, align: TextAlign.center),

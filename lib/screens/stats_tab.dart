@@ -163,15 +163,15 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
             columnWidths: const {
               0: FlexColumnWidth(2),
               1: FlexColumnWidth(2),
-              2: FlexColumnWidth(1),
+              2: FlexColumnWidth(0.8),  // #22: 비율 열 너비 줄임
             },
             children: [
               TableRow(
                 decoration: BoxDecoration(color: _SheetStyle.headerBg(context)),
                 children: [
-                  _buildCell(loc.tr('budgetName'), context, isHeader: true),
-                  _buildCell(loc.tr('budget'), context, isHeader: true, align: TextAlign.right),
-                  _buildCell(loc.tr('ratio'), context, isHeader: true, align: TextAlign.right),
+                  _buildCell(loc.tr('budgetName'), context, isHeader: true, align: TextAlign.center),  // #19: 중앙 정렬
+                  _buildCell(loc.tr('budget'), context, isHeader: true, align: TextAlign.center),  // #19: 중앙 정렬
+                  _buildCell(loc.tr('ratio'), context, isHeader: true, align: TextAlign.center),  // #19: 중앙 정렬
                 ],
               ),
             ],
@@ -186,7 +186,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
               columnWidths: const {
                 0: FlexColumnWidth(2),
                 1: FlexColumnWidth(2),
-                2: FlexColumnWidth(1),
+                2: FlexColumnWidth(0.8),  // #22: 비율 열 너비 줄임
               },
               children: [
                 TableRow(
@@ -194,7 +194,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
                   children: [
                     _buildCell(budget.name, context),
                     _buildCell(context.formatCurrency(budget.amount), context, align: TextAlign.right),
-                    _buildCell('${percentage.toStringAsFixed(1)}%', context, align: TextAlign.right),
+                    _buildCell('${percentage.toStringAsFixed(1)}%', context, align: TextAlign.center),  // #19: 중앙 정렬
                   ],
                 ),
               ],
@@ -206,15 +206,15 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
             columnWidths: const {
               0: FlexColumnWidth(2),
               1: FlexColumnWidth(2),
-              2: FlexColumnWidth(1),
+              2: FlexColumnWidth(0.8),  // #22: 비율 열 너비 줄임
             },
             children: [
               TableRow(
                 decoration: BoxDecoration(color: _SheetStyle.headerBg(context)),
                 children: [
-                  _buildCell(loc.tr('total'), context, isHeader: true),
+                  _buildCell(loc.tr('total'), context, isHeader: true, align: TextAlign.center),  // #19: 중앙 정렬
                   _buildCell(context.formatCurrency(totalBudget), context, isHeader: true, align: TextAlign.right),
-                  _buildCell('100%', context, isHeader: true, align: TextAlign.right),
+                  _buildCell('100%', context, isHeader: true, align: TextAlign.center),  // #19: 중앙 정렬
                 ],
               ),
             ],
@@ -242,23 +242,23 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
       ),
       child: Column(
         children: [
-          // 헤더
+          // 헤더 (#19: 중앙 정렬, #22: 비율 열 너비 줄임)
           Table(
             border: TableBorder(verticalInside: border),
             columnWidths: const {
               0: FlexColumnWidth(2),
               1: FlexColumnWidth(1.5),
               2: FlexColumnWidth(1.5),
-              3: FlexColumnWidth(1),
+              3: FlexColumnWidth(0.8),
             },
             children: [
               TableRow(
                 decoration: BoxDecoration(color: _SheetStyle.headerBg(context)),
                 children: [
-                  _buildCell(loc.tr('budgetName'), context, isHeader: true),
-                  _buildCell(loc.tr('used'), context, isHeader: true, align: TextAlign.right),
-                  _buildCell(loc.tr('remaining'), context, isHeader: true, align: TextAlign.right),
-                  _buildCell(loc.tr('ratio'), context, isHeader: true, align: TextAlign.right),
+                  _buildCell(loc.tr('budgetName'), context, isHeader: true, align: TextAlign.center),
+                  _buildCell(loc.tr('used'), context, isHeader: true, align: TextAlign.center),
+                  _buildCell(loc.tr('remaining'), context, isHeader: true, align: TextAlign.center),
+                  _buildCell(loc.tr('ratio'), context, isHeader: true, align: TextAlign.center),
                 ],
               ),
             ],
@@ -278,7 +278,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
                 0: FlexColumnWidth(2),
                 1: FlexColumnWidth(1.5),
                 2: FlexColumnWidth(1.5),
-                3: FlexColumnWidth(1),
+                3: FlexColumnWidth(0.8),
               },
               children: [
                 TableRow(
@@ -296,7 +296,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
                     _buildCell(
                       '${usageRate.toStringAsFixed(0)}%',
                       context,
-                      align: TextAlign.right,
+                      align: TextAlign.center,
                       textColor: usageRate > 100 ? Theme.of(context).colorScheme.error : usageRate > 80 ? Colors.orange : null,
                     ),
                   ],
@@ -311,13 +311,13 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
               0: FlexColumnWidth(2),
               1: FlexColumnWidth(1.5),
               2: FlexColumnWidth(1.5),
-              3: FlexColumnWidth(1),
+              3: FlexColumnWidth(0.8),
             },
             children: [
               TableRow(
                 decoration: BoxDecoration(color: _SheetStyle.headerBg(context)),
                 children: [
-                  _buildCell(loc.tr('total'), context, isHeader: true),
+                  _buildCell(loc.tr('total'), context, isHeader: true, align: TextAlign.center),
                   _buildCell(context.formatCurrency(totalExpense), context, isHeader: true, align: TextAlign.right),
                   _buildCell(
                     context.formatCurrency(totalBudget - totalExpense),
@@ -330,7 +330,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
                     totalBudget > 0 ? '${(totalExpense / totalBudget * 100).toStringAsFixed(0)}%' : '0%',
                     context,
                     isHeader: true,
-                    align: TextAlign.right,
+                    align: TextAlign.center,
                   ),
                 ],
               ),
@@ -534,10 +534,11 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
+                interval: 1,  // #23: 숫자 중복 방지
                 getTitlesWidget: (value, meta) {
                   final index = value.toInt();
-                  if (index < 0 || index >= trendData.length) return const SizedBox.shrink();
-                  return Text('${trendData[index].month}', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.outline));  // 차트에서는 숫자만 표시
+                  if (index < 0 || index >= trendData.length || value != index.toDouble()) return const SizedBox.shrink();  // #23: 정수 인덱스만 표시
+                  return Text('${trendData[index].month}', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.outline));
                 },
               ),
             ),
@@ -561,7 +562,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
           lineBarsData: [
             LineChartBarData(
               spots: trendData.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.expense.toDouble())).toList(),
-              isCurved: true,
+              isCurved: false,  // #24: 직선 연결
               color: Theme.of(context).colorScheme.primary,
               barWidth: 3,
               dotData: FlDotData(

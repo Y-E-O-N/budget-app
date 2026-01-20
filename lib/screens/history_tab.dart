@@ -245,18 +245,18 @@ class _HistoryTabState extends State<HistoryTab> {
       child: Table(
         border: TableBorder(verticalInside: border),
         columnWidths: const {
-          0: FixedColumnWidth(70),   // 날짜
-          1: FlexColumnWidth(1.5),   // 카테고리
+          0: FixedColumnWidth(60),   // #20: 날짜 너비 줄임
+          1: FlexColumnWidth(2),     // #20: 카테고리(예산) 너비 늘림
           2: FlexColumnWidth(2),     // 메모
           3: FlexColumnWidth(1.5),   // 금액
         },
         children: [
           TableRow(
             children: [
-              _buildHeaderCell(loc.tr('date'), context),
-              _buildHeaderCell(loc.tr('budget'), context),
-              _buildHeaderCell(loc.tr('memo'), context),
-              _buildHeaderCell(loc.tr('amount'), context, align: TextAlign.right),
+              _buildHeaderCell(loc.tr('date'), context, align: TextAlign.center),  // #21: 중앙 정렬
+              _buildHeaderCell(loc.tr('budget'), context, align: TextAlign.center),  // #19: 중앙 정렬
+              _buildHeaderCell(loc.tr('memo'), context, align: TextAlign.center),  // #19: 중앙 정렬
+              _buildHeaderCell(loc.tr('amount'), context, align: TextAlign.center),  // #19: 중앙 정렬
             ],
           ),
         ],
@@ -577,8 +577,8 @@ class _ExpenseRow extends StatelessWidget {
           bottom: isLast ? BorderSide.none : border,
         ),
         columnWidths: const {
-          0: FixedColumnWidth(70),   // 날짜
-          1: FlexColumnWidth(1.5),   // 카테고리
+          0: FixedColumnWidth(60),   // #20: 날짜 너비 줄임
+          1: FlexColumnWidth(2),     // #20: 카테고리(예산) 너비 늘림
           2: FlexColumnWidth(2),     // 메모
           3: FlexColumnWidth(1.5),   // 금액
         },
@@ -588,8 +588,8 @@ class _ExpenseRow extends StatelessWidget {
               color: isEven ? _SheetStyle.evenRowBg(context) : _SheetStyle.oddRowBg(context),
             ),
             children: [
-              // 날짜
-              _buildCell(dateFormat.format(expense.date), context),
+              // 날짜 - #21: 중앙 정렬
+              _buildCell(dateFormat.format(expense.date), context, align: TextAlign.center),
               // 카테고리
               _buildCell(category, context, maxLines: 1),
               // 메모

@@ -23,19 +23,45 @@ class ThousandsSeparatorInputFormatter extends TextInputFormatter {
   }
 }
 
-class BudgetDetailScreen extends StatelessWidget {
+// #25: 지출 내역 정렬 옵션
+enum ExpenseSortOption { dateAsc, dateDesc }
+
+class BudgetDetailScreen extends StatefulWidget {
   final Budget budget;
   const BudgetDetailScreen({super.key, required this.budget});
+
+  @override
+  State<BudgetDetailScreen> createState() => _BudgetDetailScreenState();
+}
+
+class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
+  // #25: 기본 날짜 오름차순 정렬
+  ExpenseSortOption _expenseSortOption = ExpenseSortOption.dateAsc;
+
+  // #25: 정렬된 지출 목록 반환
+  List<Expense> _getSortedExpenses(List<Expense> expenses) {
+    final sorted = List<Expense>.from(expenses);
+    switch (_expenseSortOption) {
+      case ExpenseSortOption.dateAsc:
+        sorted.sort((a, b) => a.date.compareTo(b.date));
+        break;
+      case ExpenseSortOption.dateDesc:
+        sorted.sort((a, b) => b.date.compareTo(a.date));
+        break;
+    }
+    return sorted;
+  }
 
   @override
   Widget build(BuildContext context) {
     final loc = context.loc;
     return Consumer2<BudgetProvider, SettingsProvider>(
       builder: (context, provider, settings, child) {
-        final subBudgets = provider.getSubBudgets(budget.id);
-        final expenses = provider.getExpenses(budget.id);
-        final totalExpense = provider.getTotalExpense(budget.id);
-        final remaining = budget.amount - totalExpense;
+        final subBudgets = provider.getSubBudgets(widget.budget.id);
+        final rawExpenses = provider.getExpenses(widget.budget.id);
+        final expenses = _getSortedExpenses(rawExpenses);  // #25: 정렬 적용
+        final totalExpense = provider.getTotalExpense(widget.budget.id);
+        final remaining = widget.budget.amount - totalExpense;
         final currencyFormat = NumberFormat('#,###', 'ko_KR');
 
         return Scaffold(
@@ -44,7 +70,7 @@ class BudgetDetailScreen extends StatelessWidget {
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(budget.name, style: const TextStyle(fontSize: 16)),
+                Text(widget.budget.name, style: const TextStyle(fontSize: 16)),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -74,16 +100,16 @@ class BudgetDetailScreen extends StatelessWidget {
                   decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer, borderRadius: BorderRadius.circular(8)),
                   child: Column(children: [
                     Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-                      _buildStatItem(loc.tr('budget'), context.formatCurrency(budget.amount), context),
+                      _buildStatItem(loc.tr('budget'), context.formatCurrency(widget.budget.amount), context),
                       _buildStatItem(loc.tr('used'), context.formatCurrency(totalExpense), context, color: Theme.of(context).colorScheme.error),
                       _buildStatItem(loc.tr('remaining'), context.formatCurrency(remaining), context, color: remaining >= 0 ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.error),
                     ]),
                     const SizedBox(height: 12),
                     ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(
-                      value: budget.amount > 0 ? (totalExpense / budget.amount).clamp(0.0, 1.0) : 0,
+                      value: widget.budget.amount > 0 ? (totalExpense / widget.budget.amount).clamp(0.0, 1.0) : 0,
                       minHeight: 8,
                       backgroundColor: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
-                      valueColor: AlwaysStoppedAnimation<Color>(totalExpense > budget.amount ? Theme.of(context).colorScheme.error : Theme.of(context).colorScheme.primary),
+                      valueColor: AlwaysStoppedAnimation<Color>(totalExpense > widget.budget.amount ? Theme.of(context).colorScheme.error : Theme.of(context).colorScheme.primary),
                     )),
                   ]),
                 ),
@@ -129,7 +155,25 @@ class BudgetDetailScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                       decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.3)))),
                       child: Row(children: [
-                        Expanded(flex: 2, child: Text(loc.tr('date'), style: _headerStyle(context))),
+                        // #25: 날짜 헤더 터치로 정렬 순서 변경
+                        Expanded(flex: 2, child: InkWell(
+                          onTap: () => setState(() {
+                            _expenseSortOption = _expenseSortOption == ExpenseSortOption.dateAsc
+                                ? ExpenseSortOption.dateDesc
+                                : ExpenseSortOption.dateAsc;
+                          }),
+                          child: Row(children: [
+                            Text(loc.tr('date'), style: _headerStyle(context).copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                            )),
+                            const SizedBox(width: 2),
+                            Icon(
+                              _expenseSortOption == ExpenseSortOption.dateAsc ? Icons.arrow_upward : Icons.arrow_downward,
+                              size: 12,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ]),
+                        )),
                         Expanded(flex: 3, child: Text(loc.tr('memo'), style: _headerStyle(context))),
                         Expanded(flex: 2, child: Text(loc.tr('subBudget'), style: _headerStyle(context))),
                         Expanded(flex: 2, child: Text(loc.tr('amount'), style: _headerStyle(context), textAlign: TextAlign.right)),
@@ -196,7 +240,7 @@ class BudgetDetailScreen extends StatelessWidget {
           final amount = int.tryParse(amountController.text.replaceAll(',', '')) ?? 0;
           if (name.isEmpty) return;
           if (amount <= 0) { setState(() => errorMessage = loc.tr('numberOnlyError')); return; }
-          context.read<BudgetProvider>().addSubBudget(budget.id, name, amount, isRecurring);
+          context.read<BudgetProvider>().addSubBudget(widget.budget.id, name, amount, isRecurring);
           Navigator.pop(context);
         }, child: Text(loc.tr('add'))),
       ],
@@ -256,7 +300,7 @@ class BudgetDetailScreen extends StatelessWidget {
           final amount = int.tryParse(amountController.text.replaceAll(',', '')) ?? 0;
           if (amount <= 0) { setState(() => errorMessage = loc.tr('numberOnlyError')); return; }
           provider.setLastSelectedSubBudgetId(selectedSubBudgetId);
-          provider.addExpense(budget.id, selectedSubBudgetId, amount, selectedDate, memo: memoController.text.trim().isEmpty ? null : memoController.text.trim());
+          provider.addExpense(widget.budget.id, selectedSubBudgetId, amount, selectedDate, memo: memoController.text.trim().isEmpty ? null : memoController.text.trim());
           Navigator.pop(dialogContext);
         }, child: Text(loc.tr('add'))),
       ],
