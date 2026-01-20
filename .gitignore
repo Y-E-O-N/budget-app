@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Budget API (FastAPI server)
+budget_api/.env
+budget_api/usage.db
+budget_api/__pycache__/
