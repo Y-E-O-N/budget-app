@@ -153,6 +153,7 @@ class AppLocalizations {
       'insights': '핵심 인사이트',
       'warnings': '주의사항',
       'suggestions': '개선 제안',
+      'spendingPlan': '지출 계획',  // #13
       'spendingPattern': '소비 패턴',
       'mainCategory': '주요 지출 항목',
       'spendingTrend': '지출 트렌드',
@@ -265,6 +266,9 @@ class AppLocalizations {
       'entireBudget': '전체 예산',
       'howToAddWidget': '위젯 추가 방법',
       'widgetAddGuide': '홈 화면을 길게 누르고 위젯 메뉴에서 "가계부"를 찾아 추가하세요.',
+      'selectMonth': '월 선택',
+      'moveUp': '위로 이동',
+      'moveDown': '아래로 이동',
     },
     'en': {
       'appTitle': 'Budget',
@@ -411,6 +415,7 @@ class AppLocalizations {
       'insights': 'Key Insights',
       'warnings': 'Warnings',
       'suggestions': 'Suggestions',
+      'spendingPlan': 'Spending Plan',  // #13
       'spendingPattern': 'Spending Pattern',
       'mainCategory': 'Main Category',
       'spendingTrend': 'Spending Trend',
@@ -523,6 +528,9 @@ class AppLocalizations {
       'entireBudget': 'Entire Budget',
       'howToAddWidget': 'How to Add Widget',
       'widgetAddGuide': 'Long press the home screen and find "Budget" in the widget menu to add.',
+      'selectMonth': 'Select Month',
+      'moveUp': 'Move Up',
+      'moveDown': 'Move Down',
     },
     'ja': {
       'appTitle': '家計簿',
@@ -669,6 +677,7 @@ class AppLocalizations {
       'insights': '重要な洞察',
       'warnings': '注意事項',
       'suggestions': '改善提案',
+      'spendingPlan': '支出計画',  // #13
       'spendingPattern': '支出パターン',
       'mainCategory': '主要支出項目',
       'spendingTrend': '支出トレンド',
@@ -781,6 +790,9 @@ class AppLocalizations {
       'entireBudget': '予算全体',
       'howToAddWidget': 'ウィジェットの追加方法',
       'widgetAddGuide': 'ホーム画面を長押しして、ウィジェットメニューから「家計簿」を探して追加してください。',
+      'selectMonth': '月選択',
+      'moveUp': '上に移動',
+      'moveDown': '下に移動',
     },
   };
 

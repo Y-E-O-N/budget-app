@@ -1,9 +1,14 @@
 // =============================================================================
 // ai_analysis_service.dart - AI 분석 서비스 (백엔드 프록시 방식)
 // =============================================================================
+// #17: device_id 기반 일일 3회 제한 지원
+// #13: 잔여 기간 지출 계획 조언 지원
+// =============================================================================
 import 'dart:convert';
 import 'dart:async';
 import 'package:http/http.dart' as http;
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:uuid/uuid.dart';
 import '../utils/result.dart';
 import '../constants/error_messages.dart';
 import '../constants/app_constants.dart';
@@ -17,7 +22,9 @@ class AiAnalysisResponse {
   final List<String> insights;
   final List<String> warnings;
   final List<String> suggestions;
+  final String spendingPlan;  // #13: 잔여 기간 지출 계획 조언
   final SpendingPattern pattern;
+  final int remainingAnalyses;  // #17: 남은 분석 횟수
   final String? error;
 
   AiAnalysisResponse({
@@ -26,7 +33,9 @@ class AiAnalysisResponse {
     required this.insights,
     required this.warnings,
     required this.suggestions,
+    required this.spendingPlan,
     required this.pattern,
+    required this.remainingAnalyses,
     this.error,
   });
 
@@ -37,7 +46,9 @@ class AiAnalysisResponse {
       insights: List<String>.from(json['insights'] ?? []),
       warnings: List<String>.from(json['warnings'] ?? []),
       suggestions: List<String>.from(json['suggestions'] ?? []),
+      spendingPlan: json['spendingPlan'] ?? '',  // #13
       pattern: SpendingPattern.fromJson(json['pattern'] ?? {}),
+      remainingAnalyses: json['remainingAnalyses'] ?? 0,  // #17
     );
   }
 
@@ -48,7 +59,9 @@ class AiAnalysisResponse {
       insights: [],
       warnings: [],
       suggestions: [],
+      spendingPlan: '',
       pattern: SpendingPattern.empty(),
+      remainingAnalyses: 0,
       error: message,
     );
   }
@@ -87,26 +100,92 @@ class SpendingPattern {
 }
 
 // =============================================================================
+// #17: 사용량 응답 모델
+// =============================================================================
+class UsageInfo {
+  final String deviceId;
+  final String date;
+  final int count;
+  final int limit;
+  final int remaining;
+
+  UsageInfo({
+    required this.deviceId,
+    required this.date,
+    required this.count,
+    required this.limit,
+    required this.remaining,
+  });
+
+  factory UsageInfo.fromJson(Map<String, dynamic> json) {
+    return UsageInfo(
+      deviceId: json['device_id'] ?? '',
+      date: json['date'] ?? '',
+      count: json['count'] ?? 0,
+      limit: json['limit'] ?? 3,
+      remaining: json['remaining'] ?? 0,
+    );
+  }
+}
+
+// =============================================================================
 // AI 분석 서비스 (백엔드 프록시 호출)
 // =============================================================================
 class AiAnalysisService {
   final String language;
+  static const String _deviceIdKey = 'ai_device_id';
+  static const String _settingsBoxName = 'settings';
 
   AiAnalysisService({required this.language, String? apiKey});
 
   // ==========================================================================
-  // 새로운 Result 기반 메서드 (권장)
+  // #17: Device ID 관리
   // ==========================================================================
 
-  /// 분석 요청 (Result 버전)
+  /// 기기 고유 ID 가져오기 (없으면 생성하여 저장)
+  Future<String> getDeviceId() async {
+    final box = await Hive.openBox(_settingsBoxName);
+    String? deviceId = box.get(_deviceIdKey);
+    // 없으면 새로 생성
+    if (deviceId == null || deviceId.isEmpty) {
+      deviceId = const Uuid().v4();
+      await box.put(_deviceIdKey, deviceId);
+    }
+    return deviceId;
+  }
+
+  /// 현재 사용량 조회
+  Future<Result<UsageInfo>> getUsage() async {
+    try {
+      final deviceId = await getDeviceId();
+      final url = Uri.parse('${AppConstants.apiBaseUrl}/api/usage/$deviceId');
+      final response = await http.get(url).timeout(AppConstants.apiTimeout);
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body);
+        return Result.success(UsageInfo.fromJson(json));
+      }
+      return Result.failure(AppException.api(details: 'Failed to get usage info'));
+    } catch (e) {
+      return Result.failure(AppException.network(originalError: e));
+    }
+  }
+
+  // ==========================================================================
+  // 분석 메서드 (Result 기반)
+  // ==========================================================================
+
+  /// 분석 요청 (Result 버전) - #17: device_id 포함
   Future<Result<AiAnalysisResponse>> analyzeWithResult(
     String markdownData, {
     String tone = 'gentle',
   }) async {
     try {
+      // #17: device_id 가져오기
+      final deviceId = await getDeviceId();
       final url = Uri.parse('${AppConstants.apiBaseUrl}/api/analyze');
 
-      // 백엔드로 요청
+      // 백엔드로 요청 (#17: device_id 추가)
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
@@ -114,6 +193,7 @@ class AiAnalysisService {
           'data': markdownData,
           'language': language,
           'tone': tone,
+          'device_id': deviceId,  // #17: 기기 고유 ID
         }),
       ).timeout(AppConstants.apiTimeout);
 
@@ -121,6 +201,13 @@ class AiAnalysisService {
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
         return Result.success(AiAnalysisResponse.fromJson(jsonResponse));
+      }
+
+      // #17: 429 Rate Limit 에러 처리
+      if (response.statusCode == 429) {
+        final errorBody = jsonDecode(response.body);
+        final errorMessage = errorBody['detail'] ?? ErrorMessages.get('rateLimitExceeded', language);
+        return Result.failure(AppException.rateLimit(details: errorMessage));
       }
 
       // API 에러
@@ -148,6 +235,7 @@ class AiAnalysisService {
   @Deprecated('Use analyzeWithResult() instead')
   Future<AiAnalysisResponse> analyze(String markdownData, {String tone = 'gentle'}) async {
     try {
+      final deviceId = await getDeviceId();
       final url = Uri.parse('${AppConstants.apiBaseUrl}/api/analyze');
 
       final response = await http.post(
@@ -157,12 +245,17 @@ class AiAnalysisService {
           'data': markdownData,
           'language': language,
           'tone': tone,
+          'device_id': deviceId,
         }),
       ).timeout(AppConstants.apiTimeout);
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
         return AiAnalysisResponse.fromJson(jsonResponse);
+      } else if (response.statusCode == 429) {
+        // #17: Rate limit error
+        final errorBody = jsonDecode(response.body);
+        return AiAnalysisResponse.error(errorBody['detail'] ?? _getErrorMessage('rateLimitExceeded'));
       } else {
         final errorBody = jsonDecode(response.body);
         final errorMessage = errorBody['detail'] ?? errorBody['error'] ?? 'Unknown error';

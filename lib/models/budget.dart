@@ -69,6 +69,12 @@ class Budget extends HiveObject {
   @HiveField(5)
   bool isRecurring;
 
+  // #3: 표시 순서
+  // - 예산 목록에서의 표시 순서 (낮을수록 위에 표시)
+  // - 기본값: 0 (기존 데이터 호환성을 위해)
+  @HiveField(6)
+  int order;
+
   // ---------------------------------------------------------------------------
   // 생성자 (Constructor) - 객체를 만들 때 호출되는 함수
   // ---------------------------------------------------------------------------
@@ -81,6 +87,7 @@ class Budget extends HiveObject {
     required this.year,        // 연도는 필수
     required this.month,       // 월은 필수
     this.isRecurring = false,  // 매달 적용은 선택 (기본값: false)
+    this.order = 0,            // #3: 순서는 선택 (기본값: 0)
   });
 
   // ---------------------------------------------------------------------------
@@ -100,6 +107,7 @@ class Budget extends HiveObject {
     int? year,
     int? month,
     bool? isRecurring,
+    int? order,           // #3: 순서
   }) {
     // 새로운 Budget 객체를 생성해서 반환
     return Budget(
@@ -111,6 +119,7 @@ class Budget extends HiveObject {
       year: year ?? this.year,
       month: month ?? this.month,
       isRecurring: isRecurring ?? this.isRecurring,
+      order: order ?? this.order,  // #3: 순서
     );
   }
 }

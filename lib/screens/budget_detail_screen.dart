@@ -39,7 +39,30 @@ class BudgetDetailScreen extends StatelessWidget {
         final currencyFormat = NumberFormat('#,###', 'ko_KR');
 
         return Scaffold(
-          appBar: AppBar(title: Text(budget.name), actions: [IconButton(icon: const Icon(Icons.add), onPressed: () => _showAddMenu(context, subBudgets))]),
+          // #15: 예산 상세에서 월 변경 가능
+          appBar: AppBar(
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(budget.name, style: const TextStyle(fontSize: 16)),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    InkWell(
+                      onTap: () { provider.previousMonth(); Navigator.pop(context); },
+                      child: const Icon(Icons.chevron_left, size: 18),
+                    ),
+                    Text('${provider.currentYear}년 ${provider.currentMonth}월', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal)),
+                    InkWell(
+                      onTap: () { provider.nextMonth(); Navigator.pop(context); },
+                      child: const Icon(Icons.chevron_right, size: 18),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            actions: [IconButton(icon: const Icon(Icons.add), onPressed: () => _showAddMenu(context, subBudgets))],
+          ),
           body: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,13 +180,15 @@ class BudgetDetailScreen extends StatelessWidget {
     String? errorMessage;
     showDialog(context: context, builder: (context) => StatefulBuilder(builder: (context, setState) => AlertDialog(
       title: Text(loc.tr('addSubBudget')),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: nameController, decoration: InputDecoration(labelText: loc.tr('subBudgetName'), hintText: loc.tr('subBudgetNameHint'), border: const OutlineInputBorder())),
-        const SizedBox(height: 16),
-        TextField(controller: amountController, decoration: InputDecoration(labelText: loc.tr('amount'), hintText: '0', suffixText: context.currency, border: const OutlineInputBorder(), errorText: errorMessage), keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()], onChanged: (value) { if (errorMessage != null) setState(() => errorMessage = null); }),
-        const SizedBox(height: 16),
-        CheckboxListTile(title: Text(loc.tr('applyMonthly')), value: isRecurring, onChanged: (value) => setState(() => isRecurring = value ?? false), contentPadding: EdgeInsets.zero),
-      ]),
+      content: SingleChildScrollView(  // #1: 키보드 겹침 방지
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: nameController, decoration: InputDecoration(labelText: loc.tr('subBudgetName'), hintText: loc.tr('subBudgetNameHint'), border: const OutlineInputBorder())),
+          const SizedBox(height: 16),
+          TextField(controller: amountController, decoration: InputDecoration(labelText: loc.tr('amount'), hintText: '0', suffixText: context.currency, border: const OutlineInputBorder(), errorText: errorMessage), keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()], onChanged: (value) { if (errorMessage != null) setState(() => errorMessage = null); }),
+          const SizedBox(height: 16),
+          CheckboxListTile(title: Text(loc.tr('applyMonthly')), value: isRecurring, onChanged: (value) => setState(() => isRecurring = value ?? false), contentPadding: EdgeInsets.zero),
+        ]),
+      ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: Text(loc.tr('cancel'))),
         FilledButton(onPressed: () {
@@ -413,13 +438,15 @@ class _SubBudgetRow extends StatelessWidget {
     String? errorMessage;
     showDialog(context: context, builder: (context) => StatefulBuilder(builder: (context, setState) => AlertDialog(
       title: Text(loc.tr('editSubBudget')),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: nameController, decoration: InputDecoration(labelText: loc.tr('subBudgetName'), border: const OutlineInputBorder())),
-        const SizedBox(height: 16),
-        TextField(controller: amountController, decoration: InputDecoration(labelText: loc.tr('amount'), suffixText: context.currency, border: const OutlineInputBorder(), errorText: errorMessage), keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()], onChanged: (value) { if (errorMessage != null) setState(() => errorMessage = null); }),
-        const SizedBox(height: 16),
-        CheckboxListTile(title: Text(loc.tr('applyMonthly')), value: isRecurring, onChanged: (value) => setState(() => isRecurring = value ?? false), contentPadding: EdgeInsets.zero),
-      ]),
+      content: SingleChildScrollView(  // #1: 키보드 겹침 방지
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          TextField(controller: nameController, decoration: InputDecoration(labelText: loc.tr('subBudgetName'), border: const OutlineInputBorder())),
+          const SizedBox(height: 16),
+          TextField(controller: amountController, decoration: InputDecoration(labelText: loc.tr('amount'), suffixText: context.currency, border: const OutlineInputBorder(), errorText: errorMessage), keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()], onChanged: (value) { if (errorMessage != null) setState(() => errorMessage = null); }),
+          const SizedBox(height: 16),
+          CheckboxListTile(title: Text(loc.tr('applyMonthly')), value: isRecurring, onChanged: (value) => setState(() => isRecurring = value ?? false), contentPadding: EdgeInsets.zero),
+        ]),
+      ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: Text(loc.tr('cancel'))),
         TextButton(onPressed: () async {
@@ -485,12 +512,81 @@ class _ExpenseRow extends StatelessWidget {
     ])));
   }
 
+  // #14: 복제 기능 수정 - 날짜 선택 후 등록
   void _duplicateExpense(BuildContext context) {
     final loc = context.loc;
     final provider = context.read<BudgetProvider>();
-    // 오늘 날짜로 복제
-    provider.addExpense(expense.budgetId, expense.subBudgetId, expense.amount, DateTime.now(), memo: expense.memo);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.tr('duplicated')), duration: const Duration(seconds: 2)));
+    DateTime selectedDate = DateTime.now();  // 기본값: 오늘
+    final amountController = TextEditingController(text: NumberFormat('#,###').format(expense.amount));
+    final memoController = TextEditingController(text: expense.memo ?? '');
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setState) => AlertDialog(
+          title: Text(loc.tr('duplicateExpense')),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 날짜 선택
+                Row(children: [
+                  Text(loc.tr('date'), style: const TextStyle(fontWeight: FontWeight.w500)),
+                  const Spacer(),
+                  TextButton.icon(
+                    icon: const Icon(Icons.calendar_today, size: 18),
+                    label: Text(DateFormat('yyyy-MM-dd').format(selectedDate)),
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: dialogContext,
+                        initialDate: selectedDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (picked != null) setState(() => selectedDate = picked);
+                    },
+                  ),
+                ]),
+                const SizedBox(height: 16),
+                // 메모
+                TextField(
+                  controller: memoController,
+                  decoration: InputDecoration(labelText: loc.tr('memo'), border: const OutlineInputBorder()),
+                ),
+                const SizedBox(height: 16),
+                // 금액
+                TextField(
+                  controller: amountController,
+                  decoration: InputDecoration(labelText: loc.tr('amount'), suffixText: context.currency, border: const OutlineInputBorder()),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(loc.tr('cancel'))),
+            FilledButton(
+              onPressed: () {
+                final amount = int.tryParse(amountController.text.replaceAll(',', '')) ?? 0;
+                if (amount <= 0) return;
+                provider.addExpense(
+                  expense.budgetId,
+                  expense.subBudgetId,
+                  amount,
+                  selectedDate,
+                  memo: memoController.text.trim().isEmpty ? null : memoController.text.trim(),
+                );
+                Navigator.pop(dialogContext);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.tr('duplicated')), duration: const Duration(seconds: 2)));
+              },
+              child: Text(loc.tr('add')),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showDeleteDialog(BuildContext context) {

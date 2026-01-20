@@ -51,7 +51,8 @@ class SettingsTab extends StatelessWidget {
                   title: loc.tr('basicSettings'),
                   rows: [
                     _buildCurrencyRow(context, settings, loc),
-                    _buildStartDayRow(context, settings, loc),
+                    // #16: 시작요일 설정 숨김
+                    // _buildStartDayRow(context, settings, loc),
                     _buildMonthStartDayRow(context, settings, loc),
                     _buildLanguageRow(context, settings, loc),
                   ],

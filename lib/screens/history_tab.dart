@@ -60,8 +60,7 @@ class _HistoryTabState extends State<HistoryTab> {
   String _searchQuery = '';
   DateTime? _startDate;
   DateTime? _endDate;
-  String? _selectedBudgetId;
-  String? _selectedSubBudgetId;
+  // #11-1: 예산 선택 기능 제거됨
   SortOption _sortOption = SortOption.dateDesc;
   bool _isFilterExpanded = false;
 
@@ -77,8 +76,7 @@ class _HistoryTabState extends State<HistoryTab> {
       _searchQuery = '';
       _startDate = null;
       _endDate = null;
-      _selectedBudgetId = null;
-      _selectedSubBudgetId = null;
+      // #11-1: 예산 선택 기능 제거됨
       _sortOption = SortOption.dateDesc;
     });
   }
@@ -86,6 +84,7 @@ class _HistoryTabState extends State<HistoryTab> {
   List<Expense> _getFilteredExpenses(BudgetProvider provider) {
     List<Expense> expenses = provider.allExpenses;
 
+    // 날짜 필터
     if (_startDate != null) {
       expenses = expenses.where((e) =>
         e.date.isAfter(_startDate!.subtract(const Duration(days: 1)))).toList();
@@ -94,12 +93,8 @@ class _HistoryTabState extends State<HistoryTab> {
       expenses = expenses.where((e) =>
         e.date.isBefore(_endDate!.add(const Duration(days: 1)))).toList();
     }
-    if (_selectedBudgetId != null) {
-      expenses = expenses.where((e) => e.budgetId == _selectedBudgetId).toList();
-    }
-    if (_selectedSubBudgetId != null) {
-      expenses = expenses.where((e) => e.subBudgetId == _selectedSubBudgetId).toList();
-    }
+    // #11-1: 예산 선택 필터 제거됨
+    // 검색어 필터
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
       expenses = expenses.where((e) {
@@ -138,15 +133,7 @@ class _HistoryTabState extends State<HistoryTab> {
         final filteredExpenses = _getFilteredExpenses(provider);
         final totalAmount = filteredExpenses.fold(0, (sum, e) => sum + e.amount);
 
-        final budgetMap = <String, String>{};
-        for (final b in provider.allBudgets) {
-          budgetMap[b.id] = b.name;
-        }
-        final uniqueBudgets = budgetMap.entries.toList();
-
-        final subBudgets = _selectedBudgetId != null
-            ? provider.allSubBudgets.where((s) => s.budgetId == _selectedBudgetId).toList()
-            : <dynamic>[];
+        // #11-1: 예산 목록 관련 코드 제거됨
 
         return Scaffold(
           appBar: AppBar(
@@ -184,8 +171,8 @@ class _HistoryTabState extends State<HistoryTab> {
                 ),
               ),
 
-              // 필터 패널
-              if (_isFilterExpanded) _buildFilterPanel(context, loc, uniqueBudgets, subBudgets),
+              // 필터 패널 (#11-1: 예산 선택 기능 제거됨)
+              if (_isFilterExpanded) _buildFilterPanel(context, loc),
 
               // 요약 행 + 정렬
               Container(
@@ -318,8 +305,8 @@ class _HistoryTabState extends State<HistoryTab> {
     );
   }
 
-  // 필터 패널
-  Widget _buildFilterPanel(BuildContext context, AppLocalizations loc, List<MapEntry<String, String>> budgets, List<dynamic> subBudgets) {
+  // 필터 패널 (#11-1: 예산 선택 기능 제거됨 - 기간 필터만 유지)
+  Widget _buildFilterPanel(BuildContext context, AppLocalizations loc) {
     final dateFormat = DateFormat('yyyy-MM-dd');
 
     return Container(
@@ -360,54 +347,6 @@ class _HistoryTabState extends State<HistoryTab> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-
-          // 예산 선택
-          Text(loc.tr('budgetFilter'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(border: Border.all(color: _SheetStyle.borderColor(context))),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String?>(
-                isExpanded: true,
-                isDense: true,
-                value: _selectedBudgetId,
-                hint: Text(loc.tr('allBudgets'), style: const TextStyle(fontSize: 13)),
-                style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
-                items: [
-                  DropdownMenuItem<String?>(value: null, child: Text(loc.tr('allBudgets'))),
-                  ...budgets.map((b) => DropdownMenuItem<String?>(value: b.key, child: Text(b.value))),
-                ],
-                onChanged: (value) => setState(() { _selectedBudgetId = value; _selectedSubBudgetId = null; }),
-              ),
-            ),
-          ),
-
-          if (_selectedBudgetId != null && subBudgets.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(loc.tr('subBudgetFilter'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(border: Border.all(color: _SheetStyle.borderColor(context))),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String?>(
-                  isExpanded: true,
-                  isDense: true,
-                  value: _selectedSubBudgetId,
-                  hint: Text(loc.tr('allSubBudgets'), style: const TextStyle(fontSize: 13)),
-                  style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface),
-                  items: [
-                    DropdownMenuItem<String?>(value: null, child: Text(loc.tr('allSubBudgets'))),
-                    ...subBudgets.map((s) => DropdownMenuItem<String?>(value: s.id, child: Text(s.name))),
-                  ],
-                  onChanged: (value) => setState(() => _selectedSubBudgetId = value),
-                ),
-              ),
-            ),
-          ],
-
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,

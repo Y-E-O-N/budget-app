@@ -63,6 +63,7 @@ class BudgetAdapter extends TypeAdapter<Budget> {
       year: fields[3] as int,          // 필드 3번 = year
       month: fields[4] as int,         // 필드 4번 = month
       isRecurring: fields[5] as bool,  // 필드 5번 = isRecurring
+      order: (fields[6] as int?) ?? 0, // 필드 6번 = order (#3: 순서, 기존 데이터 호환)
     );
   }
 
@@ -77,7 +78,7 @@ class BudgetAdapter extends TypeAdapter<Budget> {
     // - 같은 객체에 여러 메서드를 연속으로 호출할 때 사용
     // - writer.writeByte(6); writer.writeByte(0); ... 와 같은 의미
     writer
-      ..writeByte(6)        // 총 필드 개수: 6개
+      ..writeByte(7)        // 총 필드 개수: 7개 (#3: order 추가)
       ..writeByte(0)        // 필드 0번 표시
       ..write(obj.id)       // id 값 저장
       ..writeByte(1)        // 필드 1번 표시
@@ -89,7 +90,9 @@ class BudgetAdapter extends TypeAdapter<Budget> {
       ..writeByte(4)        // 필드 4번 표시
       ..write(obj.month)    // month 값 저장
       ..writeByte(5)        // 필드 5번 표시
-      ..write(obj.isRecurring);  // isRecurring 값 저장
+      ..write(obj.isRecurring)  // isRecurring 값 저장
+      ..writeByte(6)        // 필드 6번 표시 (#3: 순서)
+      ..write(obj.order);   // order 값 저장
   }
 
   // ---------------------------------------------------------------------------

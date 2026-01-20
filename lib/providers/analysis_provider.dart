@@ -36,7 +36,7 @@ class AnalysisRecord {
     required this.result,
   });
 
-  // JSON 직렬화
+  // JSON 직렬화 (#13, #17: 새 필드 추가)
   Map<String, dynamic> toJson() => {
     'analyzedAt': analyzedAt.toIso8601String(),
     'startDate': startDate.toIso8601String(),
@@ -48,6 +48,8 @@ class AnalysisRecord {
       'insights': result.insights,
       'warnings': result.warnings,
       'suggestions': result.suggestions,
+      'spendingPlan': result.spendingPlan,  // #13: 잔여 기간 지출 계획
+      'remainingAnalyses': result.remainingAnalyses,  // #17: 남은 분석 횟수
       'pattern': {
         'mainCategory': result.pattern.mainCategory,
         'spendingTrend': result.pattern.spendingTrend,

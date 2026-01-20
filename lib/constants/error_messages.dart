@@ -49,6 +49,10 @@ class ErrorMessages {
       'unknownError': '알 수 없는 오류가 발생했습니다',
       'operationCancelled': '작업이 취소되었습니다',
       'retryLater': '잠시 후 다시 시도해주세요',
+
+      // #17: AI 분석 제한
+      'rateLimitExceeded': '오늘의 분석 횟수를 모두 사용했습니다',
+      'rateLimitInfo': '내일 다시 시도해주세요',
     },
     'en': {
       // Network/API errors
@@ -91,6 +95,10 @@ class ErrorMessages {
       'unknownError': 'An unknown error occurred',
       'operationCancelled': 'Operation cancelled',
       'retryLater': 'Please try again later',
+
+      // #17: AI Analysis Limits
+      'rateLimitExceeded': 'Daily analysis limit reached',
+      'rateLimitInfo': 'Please try again tomorrow',
     },
     'ja': {
       // ネットワーク/APIエラー
@@ -133,6 +141,10 @@ class ErrorMessages {
       'unknownError': '不明なエラーが発生しました',
       'operationCancelled': '操作がキャンセルされました',
       'retryLater': 'しばらくしてからもう一度お試しください',
+
+      // #17: AI分析制限
+      'rateLimitExceeded': '本日の分析回数を使い切りました',
+      'rateLimitInfo': '明日もう一度お試しください',
     },
   };
 

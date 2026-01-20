@@ -128,19 +128,33 @@ class BudgetProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 특정 연도/월로 직접 이동 (#10)
+  void setYearMonth(int year, int month) {
+    _currentYear = year;
+    _currentMonth = month;
+
+    // 매달 적용 예산 처리
+    _applyRecurringBudgets();
+
+    // UI 업데이트
+    notifyListeners();
+  }
+
   // ===========================================================================
   // 예산(Budget) 관련 메서드
   // ===========================================================================
 
-  /// 현재 월의 예산 목록을 가져옴
+  /// 현재 월의 예산 목록을 가져옴 (순서대로 정렬)
   /// List<Budget>: Budget 객체들의 리스트를 반환
   List<Budget> get currentBudgets {
     // _budgetBox.values: 저장된 모든 예산을 Iterable로 반환
     // .where(): 조건에 맞는 항목만 필터링
     // .toList(): Iterable을 List로 변환
+    // #3: order 필드로 정렬
     return _budgetBox.values
         .where((b) => b.year == _currentYear && b.month == _currentMonth)
-        .toList();
+        .toList()
+      ..sort((a, b) => a.order.compareTo(b.order)); // 순서대로 정렬
   }
 
   /// 현재 월의 모든 세부예산 목록
@@ -170,6 +184,11 @@ class BudgetProvider extends ChangeNotifier {
   /// @param amount 예산 금액
   /// @param isRecurring 매달 적용 여부
   Future<void> addBudget(String name, int amount, bool isRecurring) async {
+    // #3: 현재 월의 최대 순서 값 구하기
+    final maxOrder = currentBudgets.isEmpty
+        ? 0
+        : currentBudgets.map((b) => b.order).reduce((a, b) => a > b ? a : b) + 1;
+
     // 새 Budget 객체 생성
     final budget = Budget(
       id: _uuid.v4(),              // v4: 랜덤 UUID 생성
@@ -178,11 +197,12 @@ class BudgetProvider extends ChangeNotifier {
       year: _currentYear,
       month: _currentMonth,
       isRecurring: isRecurring,
+      order: maxOrder,             // #3: 맨 뒤에 추가
     );
-    
+
     // Box에 저장 (id를 키로 사용)
     await _budgetBox.put(budget.id, budget);
-    
+
     // UI 업데이트
     notifyListeners();
   }
@@ -214,6 +234,56 @@ class BudgetProvider extends ChangeNotifier {
       await _expenseBox.delete(exp.id);
     }
     
+    notifyListeners();
+  }
+
+  // ===========================================================================
+  // #3: 예산 순서 변경 메서드
+  // ===========================================================================
+
+  /// 예산 순서 변경 (위로 이동)
+  Future<void> moveBudgetUp(String id) async {
+    final budgets = currentBudgets; // 이미 order로 정렬됨
+    final index = budgets.indexWhere((b) => b.id == id);
+    if (index <= 0) return; // 첫 번째면 이동 불가
+
+    // 위 예산과 order 값 교환
+    final current = budgets[index];
+    final above = budgets[index - 1];
+    final tempOrder = current.order;
+    await _budgetBox.put(current.id, current.copyWith(order: above.order));
+    await _budgetBox.put(above.id, above.copyWith(order: tempOrder));
+    notifyListeners();
+  }
+
+  /// 예산 순서 변경 (아래로 이동)
+  Future<void> moveBudgetDown(String id) async {
+    final budgets = currentBudgets; // 이미 order로 정렬됨
+    final index = budgets.indexWhere((b) => b.id == id);
+    if (index < 0 || index >= budgets.length - 1) return; // 마지막이면 이동 불가
+
+    // 아래 예산과 order 값 교환
+    final current = budgets[index];
+    final below = budgets[index + 1];
+    final tempOrder = current.order;
+    await _budgetBox.put(current.id, current.copyWith(order: below.order));
+    await _budgetBox.put(below.id, below.copyWith(order: tempOrder));
+    notifyListeners();
+  }
+
+  /// 드래그 앤 드롭으로 예산 순서 변경
+  Future<void> reorderBudgets(int oldIndex, int newIndex) async {
+    final budgets = currentBudgets.toList(); // 복사본 생성
+    if (oldIndex < newIndex) {
+      newIndex -= 1; // 드래그 방향 보정
+    }
+    final item = budgets.removeAt(oldIndex);
+    budgets.insert(newIndex, item);
+
+    // 순서 재할당
+    for (var i = 0; i < budgets.length; i++) {
+      await _budgetBox.put(budgets[i].id, budgets[i].copyWith(order: i));
+    }
     notifyListeners();
   }
 
@@ -353,6 +423,7 @@ class BudgetProvider extends ChangeNotifier {
           year: _currentYear,
           month: _currentMonth,
           isRecurring: true,  // 복사된 예산도 반복 유지
+          order: budget.order, // #3: 순서도 복사
         );
         _budgetBox.put(newBudget.id, newBudget);
 

@@ -90,6 +90,7 @@ enum ErrorType {
   permission,   // 권한 오류
   database,     // 데이터베이스 오류
   ocr,          // OCR 오류
+  rateLimit,    // #17: 요청 제한 오류
   unknown,      // 알 수 없는 오류
 }
 
@@ -165,6 +166,16 @@ class AppException implements Exception {
     return AppException(
       type: ErrorType.database,
       messageKey: 'databaseError',
+      details: details,
+      originalError: originalError,
+    );
+  }
+
+  // #17: 요청 제한 예외
+  factory AppException.rateLimit({String? details, Object? originalError}) {
+    return AppException(
+      type: ErrorType.rateLimit,
+      messageKey: 'rateLimitExceeded',
       details: details,
       originalError: originalError,
     );

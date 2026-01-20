@@ -48,8 +48,53 @@ class _SheetStyle {
     Theme.of(context).colorScheme.surfaceContainerLowest;
 }
 
-class BudgetTab extends StatelessWidget {
+// #2: 예산 정렬 옵션 (#3: order 추가)
+enum BudgetSortOption { order, name, nameDesc, amount, amountDesc, used, usedDesc, remaining, remainingDesc }
+
+class BudgetTab extends StatefulWidget {
   const BudgetTab({super.key});
+
+  @override
+  State<BudgetTab> createState() => _BudgetTabState();
+}
+
+class _BudgetTabState extends State<BudgetTab> {
+  BudgetSortOption _sortOption = BudgetSortOption.order;  // #3: 기본값을 순서로 변경
+
+  // #2: 정렬된 예산 목록 반환 (#3: order 옵션 추가)
+  List<Budget> _getSortedBudgets(List<Budget> budgets, BudgetProvider provider) {
+    final sorted = List<Budget>.from(budgets);
+    switch (_sortOption) {
+      case BudgetSortOption.order:
+        // #3: 이미 order로 정렬되어 있으므로 그대로 반환
+        break;
+      case BudgetSortOption.name:
+        sorted.sort((a, b) => a.name.compareTo(b.name));
+        break;
+      case BudgetSortOption.nameDesc:
+        sorted.sort((a, b) => b.name.compareTo(a.name));
+        break;
+      case BudgetSortOption.amount:
+        sorted.sort((a, b) => a.amount.compareTo(b.amount));
+        break;
+      case BudgetSortOption.amountDesc:
+        sorted.sort((a, b) => b.amount.compareTo(a.amount));
+        break;
+      case BudgetSortOption.used:
+        sorted.sort((a, b) => provider.getTotalExpense(a.id).compareTo(provider.getTotalExpense(b.id)));
+        break;
+      case BudgetSortOption.usedDesc:
+        sorted.sort((a, b) => provider.getTotalExpense(b.id).compareTo(provider.getTotalExpense(a.id)));
+        break;
+      case BudgetSortOption.remaining:
+        sorted.sort((a, b) => (a.amount - provider.getTotalExpense(a.id)).compareTo(b.amount - provider.getTotalExpense(b.id)));
+        break;
+      case BudgetSortOption.remainingDesc:
+        sorted.sort((a, b) => (b.amount - provider.getTotalExpense(b.id)).compareTo(a.amount - provider.getTotalExpense(a.id)));
+        break;
+    }
+    return sorted;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +102,7 @@ class BudgetTab extends StatelessWidget {
     return Consumer2<BudgetProvider, SettingsProvider>(
       builder: (context, provider, settings, child) {
         final budgets = provider.currentBudgets;
+        final sortedBudgets = _getSortedBudgets(budgets, provider);  // #2: 정렬 적용
         final totalBudget = provider.totalBudget;
         int totalExpense = 0;
         for (var b in budgets) { totalExpense += provider.getTotalExpense(b.id); }
@@ -66,7 +112,14 @@ class BudgetTab extends StatelessWidget {
           appBar: AppBar(
             title: Row(mainAxisSize: MainAxisSize.min, children: [
               IconButton(icon: const Icon(Icons.chevron_left), onPressed: () => provider.previousMonth()),
-              Text('${provider.currentYear}. ${provider.currentMonth}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+              // #10: 날짜 터치시 월 선택 다이얼로그
+              InkWell(
+                onTap: () => _showMonthPickerDialog(context, provider),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Text('${provider.currentYear}년 ${provider.currentMonth}월', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                ),
+              ),
               IconButton(icon: const Icon(Icons.chevron_right), onPressed: () => provider.nextMonth()),
             ]),
             actions: [IconButton(icon: const Icon(Icons.add), onPressed: () => _showAddBudgetDialog(context))],
@@ -76,15 +129,15 @@ class BudgetTab extends StatelessWidget {
               // 요약 테이블 (스프레드시트 스타일)
               _buildSummaryTable(context, loc, totalBudget, totalExpense, totalRemaining),
               const SizedBox(height: 8),
-              // 메인 테이블
+              // 메인 테이블 (#2: 정렬된 목록 사용)
               Expanded(
-                child: budgets.isEmpty
+                child: sortedBudgets.isEmpty
                     ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                         Icon(Icons.table_chart_outlined, size: 64, color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.5)),
                         const SizedBox(height: 16),
                         Text(loc.tr('addBudgetPlease'), style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.7))),
                       ]))
-                    : _buildDataTable(context, loc, budgets, provider),
+                    : _buildDataTable(context, loc, sortedBudgets, provider),
               ),
             ],
           ),
@@ -153,25 +206,23 @@ class BudgetTab extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // 헤더 행
+          // 헤더 행 (#2: 정렬 기능 추가)
           Table(
             border: TableBorder(verticalInside: border),
             columnWidths: const {
-              0: FlexColumnWidth(2.5),
+              0: FlexColumnWidth(3),    // 예산명 너비 확장
               1: FlexColumnWidth(2),
               2: FlexColumnWidth(2),
               3: FlexColumnWidth(2),
-              4: FixedColumnWidth(32),
             },
             children: [
               TableRow(
                 decoration: BoxDecoration(color: _SheetStyle.headerBg(context)),
                 children: [
-                  _buildCell(loc.tr('budgetName'), isHeader: true, context: context),
-                  _buildCell(loc.tr('budget'), isHeader: true, context: context, align: TextAlign.right),
-                  _buildCell(loc.tr('used'), isHeader: true, context: context, align: TextAlign.right),
-                  _buildCell(loc.tr('remaining'), isHeader: true, context: context, align: TextAlign.right),
-                  _buildCell('', isHeader: true, context: context),  // 화살표 열
+                  _buildSortableHeaderCell(loc.tr('budgetName'), BudgetSortOption.name, BudgetSortOption.nameDesc, context),
+                  _buildSortableHeaderCell(loc.tr('budget'), BudgetSortOption.amount, BudgetSortOption.amountDesc, context, align: TextAlign.center),
+                  _buildSortableHeaderCell(loc.tr('used'), BudgetSortOption.used, BudgetSortOption.usedDesc, context, align: TextAlign.center),
+                  _buildSortableHeaderCell(loc.tr('remaining'), BudgetSortOption.remaining, BudgetSortOption.remainingDesc, context, align: TextAlign.center),
                 ],
               ),
             ],
@@ -227,6 +278,138 @@ class BudgetTab extends StatelessWidget {
     );
   }
 
+  // #2: 정렬 가능한 헤더 셀
+  Widget _buildSortableHeaderCell(String text, BudgetSortOption ascOption, BudgetSortOption descOption, BuildContext context, {TextAlign align = TextAlign.left}) {
+    final isAsc = _sortOption == ascOption;
+    final isDesc = _sortOption == descOption;
+    final isActive = isAsc || isDesc;
+
+    return InkWell(
+      onTap: () {
+        setState(() {
+          if (isAsc) {
+            _sortOption = descOption;  // 오름차순 → 내림차순
+          } else if (isDesc) {
+            _sortOption = BudgetSortOption.order;  // #3: 내림차순 → 기본(순서)
+          } else {
+            _sortOption = ascOption;  // 비활성 → 오름차순
+          }
+        });
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: _SheetStyle.cellPaddingH,
+          vertical: _SheetStyle.cellPaddingV,
+        ),
+        child: Row(
+          mainAxisAlignment: align == TextAlign.center ? MainAxisAlignment.center : MainAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                text,
+                style: TextStyle(
+                  fontSize: _SheetStyle.headerFontSize,
+                  fontWeight: FontWeight.w600,
+                  color: isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (isActive) ...[
+              const SizedBox(width: 2),
+              Icon(
+                isAsc ? Icons.arrow_upward : Icons.arrow_downward,
+                size: 12,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // #10: 월 선택 다이얼로그
+  void _showMonthPickerDialog(BuildContext context, BudgetProvider provider) {
+    final loc = context.loc;
+    int selectedYear = provider.currentYear;
+    int selectedMonth = provider.currentMonth;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setState) => AlertDialog(
+          title: Text(loc.tr('selectMonth')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 연도 선택
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left),
+                    onPressed: () => setState(() => selectedYear--),
+                  ),
+                  Text('$selectedYear년', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right),
+                    onPressed: () => setState(() => selectedYear++),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // 월 선택 그리드
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 4,
+                  childAspectRatio: 1.5,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                itemCount: 12,
+                itemBuilder: (context, index) {
+                  final month = index + 1;
+                  final isSelected = month == selectedMonth;
+                  return InkWell(
+                    onTap: () => setState(() => selectedMonth = month),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '$month월',
+                        style: TextStyle(
+                          color: isSelected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(loc.tr('cancel'))),
+            FilledButton(
+              onPressed: () {
+                provider.setYearMonth(selectedYear, selectedMonth);
+                Navigator.pop(dialogContext);
+              },
+              child: Text(loc.tr('confirm')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showAddBudgetDialog(BuildContext context) {
     final loc = context.loc;
     final nameController = TextEditingController();
@@ -239,19 +422,21 @@ class BudgetTab extends StatelessWidget {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: Text(loc.tr('addBudget')),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(controller: nameController, decoration: InputDecoration(labelText: loc.tr('budgetName'), hintText: loc.tr('budgetNameHint'), border: const OutlineInputBorder())),
-            const SizedBox(height: 16),
-            TextField(
-              controller: amountController,
-              decoration: InputDecoration(labelText: loc.tr('amount'), hintText: '0', suffixText: context.currency, border: const OutlineInputBorder(), errorText: errorMessage),
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()],
-              onChanged: (value) { if (errorMessage != null) setState(() => errorMessage = null); },
-            ),
-            const SizedBox(height: 16),
-            CheckboxListTile(title: Text(loc.tr('applyMonthly')), subtitle: Text(loc.tr('applyMonthlyDesc')), value: isRecurring, onChanged: (value) => setState(() => isRecurring = value ?? false), contentPadding: EdgeInsets.zero),
-          ]),
+          content: SingleChildScrollView(  // #1: 키보드 겹침 방지
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(controller: nameController, decoration: InputDecoration(labelText: loc.tr('budgetName'), hintText: loc.tr('budgetNameHint'), border: const OutlineInputBorder())),
+              const SizedBox(height: 16),
+              TextField(
+                controller: amountController,
+                decoration: InputDecoration(labelText: loc.tr('amount'), hintText: '0', suffixText: context.currency, border: const OutlineInputBorder(), errorText: errorMessage),
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()],
+                onChanged: (value) { if (errorMessage != null) setState(() => errorMessage = null); },
+              ),
+              const SizedBox(height: 16),
+              CheckboxListTile(title: Text(loc.tr('applyMonthly')), subtitle: Text(loc.tr('applyMonthlyDesc')), value: isRecurring, onChanged: (value) => setState(() => isRecurring = value ?? false), contentPadding: EdgeInsets.zero),
+            ]),
+          ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: Text(loc.tr('cancel'))),
             FilledButton(
@@ -303,11 +488,10 @@ class _BudgetRow extends StatelessWidget {
           bottom: isLast ? BorderSide.none : border,
         ),
         columnWidths: const {
-          0: FlexColumnWidth(2.5),
+          0: FlexColumnWidth(3),    // 예산명 너비 확장 (#6)
           1: FlexColumnWidth(2),
           2: FlexColumnWidth(2),
           3: FlexColumnWidth(2),
-          4: FixedColumnWidth(32),
         },
         children: [
           TableRow(
@@ -315,24 +499,16 @@ class _BudgetRow extends StatelessWidget {
               color: isEven ? _SheetStyle.evenRowBg(context) : _SheetStyle.oddRowBg(context),
             ),
             children: [
-              // 예산명 + 반복 아이콘
+              // 예산명 (반복 아이콘 제거 #7)
               Container(
                 padding: EdgeInsets.symmetric(
                   horizontal: _SheetStyle.cellPaddingH,
                   vertical: _SheetStyle.cellPaddingV,
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        budget.name,
-                        style: TextStyle(fontSize: _SheetStyle.fontSize),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (budget.isRecurring)
-                      Icon(Icons.repeat, size: 14, color: Theme.of(context).colorScheme.primary),
-                  ],
+                child: Text(
+                  budget.name,
+                  style: TextStyle(fontSize: _SheetStyle.fontSize),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               // 예산액
@@ -345,11 +521,6 @@ class _BudgetRow extends StatelessWidget {
                 context,
                 textColor: remaining < 0 ? Theme.of(context).colorScheme.error : null,
                 bold: remaining < 0,
-              ),
-              // 화살표
-              Container(
-                padding: EdgeInsets.symmetric(vertical: _SheetStyle.cellPaddingV),
-                child: Icon(Icons.chevron_right, size: 18, color: Theme.of(context).colorScheme.outline),
               ),
             ],
           ),
@@ -379,10 +550,29 @@ class _BudgetRow extends StatelessWidget {
 
   void _showEditDeleteMenu(BuildContext context) {
     final loc = context.loc;
-    showModalBottomSheet(context: context, builder: (context) => SafeArea(
+    final provider = context.read<BudgetProvider>();
+    final budgets = provider.currentBudgets;
+    final index = budgets.indexWhere((b) => b.id == budget.id);
+    final isFirst = index == 0;
+    final isLast = index == budgets.length - 1;
+
+    showModalBottomSheet(context: context, builder: (sheetContext) => SafeArea(
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        ListTile(leading: const Icon(Icons.edit), title: Text(loc.tr('edit')), onTap: () { Navigator.pop(context); _showEditDialog(context); }),
-        ListTile(leading: Icon(Icons.delete, color: Theme.of(context).colorScheme.error), title: Text(loc.tr('delete'), style: TextStyle(color: Theme.of(context).colorScheme.error)), onTap: () { Navigator.pop(context); _confirmDelete(context); }),
+        // #3: 위로 이동
+        ListTile(
+          leading: Icon(Icons.arrow_upward, color: isFirst ? Theme.of(sheetContext).disabledColor : null),
+          title: Text(loc.tr('moveUp'), style: TextStyle(color: isFirst ? Theme.of(sheetContext).disabledColor : null)),
+          onTap: isFirst ? null : () { Navigator.pop(sheetContext); provider.moveBudgetUp(budget.id); },
+        ),
+        // #3: 아래로 이동
+        ListTile(
+          leading: Icon(Icons.arrow_downward, color: isLast ? Theme.of(sheetContext).disabledColor : null),
+          title: Text(loc.tr('moveDown'), style: TextStyle(color: isLast ? Theme.of(sheetContext).disabledColor : null)),
+          onTap: isLast ? null : () { Navigator.pop(sheetContext); provider.moveBudgetDown(budget.id); },
+        ),
+        const Divider(height: 1),
+        ListTile(leading: const Icon(Icons.edit), title: Text(loc.tr('edit')), onTap: () { Navigator.pop(sheetContext); _showEditDialog(context); }),
+        ListTile(leading: Icon(Icons.delete, color: Theme.of(sheetContext).colorScheme.error), title: Text(loc.tr('delete'), style: TextStyle(color: Theme.of(sheetContext).colorScheme.error)), onTap: () { Navigator.pop(sheetContext); _confirmDelete(context); }),
       ]),
     ));
   }
@@ -399,19 +589,21 @@ class _BudgetRow extends StatelessWidget {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: Text(loc.tr('editBudget')),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(controller: nameController, decoration: InputDecoration(labelText: loc.tr('budgetName'), border: const OutlineInputBorder())),
-            const SizedBox(height: 16),
-            TextField(
-              controller: amountController,
-              decoration: InputDecoration(labelText: loc.tr('amount'), suffixText: context.currency, border: const OutlineInputBorder(), errorText: errorMessage),
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()],
-              onChanged: (value) { if (errorMessage != null) setState(() => errorMessage = null); },
-            ),
-            const SizedBox(height: 16),
-            CheckboxListTile(title: Text(loc.tr('applyMonthly')), value: isRecurring, onChanged: (value) => setState(() => isRecurring = value ?? false), contentPadding: EdgeInsets.zero),
-          ]),
+          content: SingleChildScrollView(  // #1: 키보드 겹침 방지
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(controller: nameController, decoration: InputDecoration(labelText: loc.tr('budgetName'), border: const OutlineInputBorder())),
+              const SizedBox(height: 16),
+              TextField(
+                controller: amountController,
+                decoration: InputDecoration(labelText: loc.tr('amount'), suffixText: context.currency, border: const OutlineInputBorder(), errorText: errorMessage),
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()],
+                onChanged: (value) { if (errorMessage != null) setState(() => errorMessage = null); },
+              ),
+              const SizedBox(height: 16),
+              CheckboxListTile(title: Text(loc.tr('applyMonthly')), value: isRecurring, onChanged: (value) => setState(() => isRecurring = value ?? false), contentPadding: EdgeInsets.zero),
+            ]),
+          ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: Text(loc.tr('cancel'))),
             FilledButton(

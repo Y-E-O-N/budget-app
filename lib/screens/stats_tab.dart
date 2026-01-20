@@ -64,7 +64,14 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
 
         if (budgets.isEmpty) {
           return Scaffold(
-            appBar: AppBar(title: Text('${provider.currentYear}. ${provider.currentMonth} ${loc.tr('statsTab')}')),
+            appBar: AppBar(
+              // #12: 날짜 형식 변경 + 월 네비게이션
+              title: Row(mainAxisSize: MainAxisSize.min, children: [
+                IconButton(icon: const Icon(Icons.chevron_left), onPressed: () => provider.previousMonth()),
+                Text('${provider.currentYear}년 ${provider.currentMonth}월', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                IconButton(icon: const Icon(Icons.chevron_right), onPressed: () => provider.nextMonth()),
+              ]),
+            ),
             body: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.table_chart_outlined, size: 64, color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.5)),
               const SizedBox(height: 16),
@@ -75,7 +82,12 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
 
         return Scaffold(
           appBar: AppBar(
-            title: Text('${provider.currentYear}. ${provider.currentMonth} ${loc.tr('statsTab')}'),
+            // #12: 날짜 형식 변경 + 월 네비게이션
+            title: Row(mainAxisSize: MainAxisSize.min, children: [
+              IconButton(icon: const Icon(Icons.chevron_left), onPressed: () => provider.previousMonth()),
+              Text('${provider.currentYear}년 ${provider.currentMonth}월', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+              IconButton(icon: const Icon(Icons.chevron_right), onPressed: () => provider.nextMonth()),
+            ]),
             bottom: TabBar(
               controller: _tabController,
               tabs: [
@@ -476,7 +488,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
               TableRow(
                 decoration: BoxDecoration(color: _SheetStyle.evenRowBg(context)),
                 children: trendData.map((d) =>
-                  _buildCell(FormatUtils.formatAmountShort(d.expense), context, align: TextAlign.center)
+                  _buildCell(d.expense > 0 ? FormatUtils.formatAmountShort(d.expense) : '-', context, align: TextAlign.center)  // 데이터 없으면 '-' 표시
                 ).toList(),
               ),
             ],
@@ -525,7 +537,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
                 getTitlesWidget: (value, meta) {
                   final index = value.toInt();
                   if (index < 0 || index >= trendData.length) return const SizedBox.shrink();
-                  return Text(FormatUtils.formatMonth(trendData[index].month), style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.outline));
+                  return Text('${trendData[index].month}', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.outline));  // 차트에서는 숫자만 표시
                 },
               ),
             ),
@@ -901,6 +913,9 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
                 if (result.insights.isNotEmpty) ...[_buildResultListSection(loc.tr('insights'), result.insights, Icons.lightbulb, Colors.amber), const Divider(height: 24)],
                 if (result.warnings.isNotEmpty) ...[_buildResultListSection(loc.tr('warnings'), result.warnings, Icons.warning, Colors.orange), const Divider(height: 24)],
                 if (result.suggestions.isNotEmpty) ...[_buildResultListSection(loc.tr('suggestions'), result.suggestions, Icons.tips_and_updates, Colors.green), const Divider(height: 24)],
+
+                // #13: 잔여 기간 지출 계획 조언
+                if (result.spendingPlan.isNotEmpty) ...[_buildResultSection(loc.tr('spendingPlan'), result.spendingPlan, Icons.calendar_today), const Divider(height: 24)],
 
                 _buildPatternSection(loc, result.pattern),
               ],
