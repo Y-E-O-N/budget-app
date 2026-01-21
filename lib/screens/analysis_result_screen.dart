@@ -3,15 +3,17 @@
 // =============================================================================
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:intl/intl.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 import '../app_localizations.dart';
 import '../providers/analysis_provider.dart';
 import '../services/ai_analysis_service.dart';
+// #31: 플랫폼별 이미지 저장 - 조건부 import
+import '../utils/image_saver_stub.dart'
+    if (dart.library.html) '../utils/image_saver_web.dart'
+    if (dart.library.io) '../utils/image_saver_io.dart' as image_saver;
 
 class AnalysisResultScreen extends StatefulWidget {
   final AnalysisRecord record;
@@ -299,7 +301,7 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
     }
   }
 
-  // #27: 이미지로 내보내기
+  // #27, #31: 이미지로 내보내기 (웹/네이티브 플랫폼 분기 처리)
   Future<void> _exportAsImage(BuildContext context) async {
     final loc = context.loc;
 
@@ -319,18 +321,25 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
       }
 
       final bytes = byteData.buffer.asUint8List();
-
-      // 임시 파일로 저장
-      final tempDir = await getTemporaryDirectory();
       final fileName = 'budget_analysis_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.png';
-      final file = File('${tempDir.path}/$fileName');
-      await file.writeAsBytes(bytes);
 
-      // 공유
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: loc.tr('analysisResult'),
+      // #31: 플랫폼별 저장/공유 처리
+      final success = await image_saver.saveAndShareImage(
+        bytes,
+        fileName,
+        loc.tr('analysisResult'),
       );
+
+      if (!success && context.mounted) {
+        throw Exception('Save failed');
+      }
+
+      // #31: 웹에서는 다운로드 성공 메시지 표시
+      if (kIsWeb && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(loc.tr('downloadStarted'))),
+        );
+      }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
