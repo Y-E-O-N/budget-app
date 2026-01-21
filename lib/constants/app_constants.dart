@@ -8,7 +8,7 @@ class AppConstants {
   // API 설정
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.0.136:3000',
+    defaultValue: 'https://obnoxious-liana-y-e-o-n-2cd9e005.koyeb.app',
   );
   static const Duration apiTimeout = Duration(seconds: 60);
 
