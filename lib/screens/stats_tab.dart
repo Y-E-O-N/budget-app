@@ -10,6 +10,7 @@ import '../providers/trend_provider.dart';
 import '../services/ai_analysis_service.dart';
 import '../constants/app_constants.dart';
 import '../utils/format_utils.dart';
+import 'analysis_result_screen.dart';  // #26: 분석 결과 전용 화면
 
 // =============================================================================
 // 스프레드시트 스타일 상수
@@ -118,8 +119,6 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildAnalysisStatusBanner(context, analysis, settings.language),
-
           // 예산 배분 테이블
           _buildSectionTitle(loc.tr('budgetAllocation')),
           _buildBudgetAllocationTable(context, budgets, provider),
@@ -133,6 +132,9 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
           // AI 분석 버튼
           _buildAiAnalysisButton(context, provider, settings, analysis),
           const SizedBox(height: 16),
+
+          // #30: 분석 상태 배너를 하단에 표시
+          _buildAnalysisStatusBanner(context, analysis, settings.language),
         ],
       ),
     );
@@ -840,10 +842,108 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(loc.tr('cancel'))),
-            ElevatedButton(onPressed: () { Navigator.pop(dialogContext); _startBackgroundAnalysis(context, provider, settings, analysis, startDate, endDate, selectedTone); }, child: Text(loc.tr('requestAnalysis'))),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                // #29: 잔여횟수 확인 후 분석 요청
+                _showAnalysisConfirmDialog(context, provider, settings, analysis, startDate, endDate, selectedTone);
+              },
+              child: Text(loc.tr('requestAnalysis')),
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  // #29: 잔여횟수 확인 다이얼로그
+  void _showAnalysisConfirmDialog(BuildContext context, BudgetProvider provider, SettingsProvider settings, AnalysisProvider analysis, DateTime startDate, DateTime endDate, String tone) async {
+    final loc = context.loc;
+    final service = AiAnalysisService(language: settings.language);
+
+    // 사용량 조회
+    final usageResult = await service.getUsage();
+
+    if (!context.mounted) return;
+
+    usageResult.fold(
+      onSuccess: (usage) {
+        // 잔여횟수 표시 확인 다이얼로그
+        showDialog(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Row(children: [
+              Icon(Icons.info_outline, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(loc.tr('confirm')),
+            ]),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(loc.tr('analysisConfirmMessage')),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: usage.remaining > 0
+                        ? Colors.green.withValues(alpha: 0.1)
+                        : Colors.red.withValues(alpha: 0.1),
+                    border: Border.all(
+                      color: usage.remaining > 0 ? Colors.green : Colors.red,
+                      width: 1,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        usage.remaining > 0 ? Icons.check_circle : Icons.warning,
+                        color: usage.remaining > 0 ? Colors.green : Colors.red,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${loc.tr('remainingAnalyses')}: ${usage.remaining}/${usage.limit}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: usage.remaining > 0 ? Colors.green : Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (usage.remaining == 0) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    loc.tr('noRemainingAnalyses'),
+                    style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(loc.tr('cancel'))),
+              if (usage.remaining > 0)
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    _startBackgroundAnalysis(context, provider, settings, analysis, startDate, endDate, tone);
+                  },
+                  child: Text(loc.tr('requestAnalysis')),
+                ),
+            ],
+          ),
+        );
+      },
+      onFailure: (error) {
+        // 사용량 조회 실패 시에도 분석은 진행 (서버에서 차단됨)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(loc.tr('usageCheckFailed')), backgroundColor: Colors.orange),
+        );
+        _startBackgroundAnalysis(context, provider, settings, analysis, startDate, endDate, tone);
+      },
     );
   }
 
@@ -852,151 +952,12 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
     analysis.startAnalysis(language: settings.language, currency: settings.currency, budgets: provider.currentBudgets, subBudgets: provider.currentSubBudgets, expenses: expenses, startDate: startDate, endDate: endDate, getTotalExpense: provider.getTotalExpense, getSubBudgetExpense: provider.getSubBudgetExpense, tone: tone);
   }
 
+  // #26: 분석 결과를 새 페이지로 표시
   void _showAnalysisResultDialogWithRecord(BuildContext context, AnalysisRecord record, String language) {
-    final loc = context.loc;
-    final dateFormat = DateFormat('yyyy.MM.dd');
-    final result = record.result;
-    final border = BorderSide(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(children: [const Icon(Icons.auto_awesome, color: Colors.amber), const SizedBox(width: 8), Text(loc.tr('analysisResult'))]),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 분석 정보 테이블
-                Container(
-                  decoration: BoxDecoration(border: Border.all(color: _SheetStyle.borderColor(context))),
-                  child: Table(
-                    border: TableBorder(horizontalInside: border),
-                    columnWidths: const {0: FlexColumnWidth(1), 1: FlexColumnWidth(2)},
-                    children: [
-                      TableRow(decoration: BoxDecoration(color: _SheetStyle.evenRowBg(context)), children: [
-                        _buildCell(loc.tr('analysisPeriod'), context, isHeader: true),
-                        _buildCell('${dateFormat.format(record.startDate)} ~ ${dateFormat.format(record.endDate)}', context),
-                      ]),
-                      TableRow(decoration: BoxDecoration(color: _SheetStyle.oddRowBg(context)), children: [
-                        _buildCell(loc.tr('responseTone'), context, isHeader: true),
-                        _buildCell(_getToneLabel(record.tone, loc), context),
-                      ]),
-                      TableRow(decoration: BoxDecoration(color: _SheetStyle.evenRowBg(context)), children: [
-                        _buildCell(loc.tr('analyzedAt'), context, isHeader: true),
-                        _buildCell(DateFormat('yyyy.MM.dd HH:mm').format(record.analyzedAt), context),
-                      ]),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // 한 마디 요약
-                if (result.oneLiner.isNotEmpty)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5), border: Border.all(color: _SheetStyle.borderColor(context))),
-                    child: Column(children: [
-                      Icon(Icons.format_quote, size: 20, color: Theme.of(context).colorScheme.primary),
-                      const SizedBox(height: 8),
-                      Text(result.oneLiner, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic, color: Theme.of(context).colorScheme.onPrimaryContainer), textAlign: TextAlign.center),
-                    ]),
-                  ),
-
-                // 요약
-                _buildResultSection(loc.tr('summary'), result.summary, Icons.summarize),
-                const Divider(height: 24),
-
-                if (result.insights.isNotEmpty) ...[_buildResultListSection(loc.tr('insights'), result.insights, Icons.lightbulb, Colors.amber), const Divider(height: 24)],
-                if (result.warnings.isNotEmpty) ...[_buildResultListSection(loc.tr('warnings'), result.warnings, Icons.warning, Colors.orange), const Divider(height: 24)],
-                if (result.suggestions.isNotEmpty) ...[_buildResultListSection(loc.tr('suggestions'), result.suggestions, Icons.tips_and_updates, Colors.green), const Divider(height: 24)],
-
-                // #13: 잔여 기간 지출 계획 조언
-                if (result.spendingPlan.isNotEmpty) ...[_buildResultSection(loc.tr('spendingPlan'), result.spendingPlan, Icons.calendar_today), const Divider(height: 24)],
-
-                _buildPatternSection(loc, result.pattern),
-              ],
-            ),
-          ),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(loc.tr('confirm')))],
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => AnalysisResultScreen(record: record, language: language)),
     );
-  }
-
-  Widget _buildResultSection(String title, String content, IconData icon) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [Icon(icon, size: 16, color: Theme.of(context).colorScheme.primary), const SizedBox(width: 8), Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13))]),
-      const SizedBox(height: 8),
-      Text(content, style: const TextStyle(fontSize: 12)),
-    ]);
-  }
-
-  Widget _buildResultListSection(String title, List<String> items, IconData icon, Color iconColor) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [Icon(icon, size: 16, color: iconColor), const SizedBox(width: 8), Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13))]),
-      const SizedBox(height: 8),
-      ...items.map((item) => Padding(
-        padding: const EdgeInsets.only(left: 8, bottom: 4),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('• ', style: TextStyle(fontSize: 12)), Expanded(child: Text(item, style: const TextStyle(fontSize: 12)))]),
-      )),
-    ]);
-  }
-
-  Widget _buildPatternSection(AppLocalizations loc, SpendingPattern pattern) {
-    final border = BorderSide(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth);
-
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [Icon(Icons.analytics, size: 16, color: Theme.of(context).colorScheme.primary), const SizedBox(width: 8), Text(loc.tr('spendingPattern'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13))]),
-      const SizedBox(height: 8),
-      Container(
-        decoration: BoxDecoration(border: Border.all(color: _SheetStyle.borderColor(context))),
-        child: Table(
-          border: TableBorder(horizontalInside: border),
-          columnWidths: const {0: FlexColumnWidth(1), 1: FlexColumnWidth(1)},
-          children: [
-            TableRow(decoration: BoxDecoration(color: _SheetStyle.evenRowBg(context)), children: [
-              _buildCell(loc.tr('mainCategory'), context),
-              _buildCell(pattern.mainCategory, context, align: TextAlign.right),
-            ]),
-            TableRow(decoration: BoxDecoration(color: _SheetStyle.oddRowBg(context)), children: [
-              _buildCell(loc.tr('spendingTrend'), context),
-              _buildCell(_getTrendText(pattern.spendingTrend, loc), context, align: TextAlign.right),
-            ]),
-            TableRow(decoration: BoxDecoration(color: _SheetStyle.evenRowBg(context)), children: [
-              _buildCell(loc.tr('savingPotential'), context),
-              _buildCell(context.formatCurrency(pattern.savingPotential), context, align: TextAlign.right),
-            ]),
-            TableRow(decoration: BoxDecoration(color: _SheetStyle.oddRowBg(context)), children: [
-              _buildCell(loc.tr('riskLevel'), context),
-              _buildCell(_getRiskText(pattern.riskLevel, loc), context, align: TextAlign.right),
-            ]),
-          ],
-        ),
-      ),
-    ]);
-  }
-
-  String _getTrendText(String trend, AppLocalizations loc) {
-    switch (trend) {
-      case 'increasing': return loc.tr('trendIncreasing');
-      case 'decreasing': return loc.tr('trendDecreasing');
-      case 'stable': return loc.tr('trendStable');
-      default: return trend;
-    }
-  }
-
-  String _getRiskText(String risk, AppLocalizations loc) {
-    switch (risk) {
-      case 'low': return loc.tr('riskLow');
-      case 'medium': return loc.tr('riskMedium');
-      case 'high': return loc.tr('riskHigh');
-      default: return risk;
-    }
   }
 
   String _getToneLabel(String tone, AppLocalizations loc) {

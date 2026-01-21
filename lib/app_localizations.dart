@@ -269,6 +269,13 @@ class AppLocalizations {
       'selectMonth': '월 선택',
       'moveUp': '위로 이동',
       'moveDown': '아래로 이동',
+
+      // #27, #29: AI 분석 관련 추가
+      'exportImage': '이미지로 내보내기',
+      'analysisConfirmMessage': 'AI 분석을 요청하시겠습니까?',
+      'remainingAnalyses': '오늘 남은 분석 횟수',
+      'noRemainingAnalyses': '오늘 분석 횟수를 모두 사용했습니다. 내일 다시 시도해주세요.',
+      'usageCheckFailed': '잔여 횟수 조회 실패. 분석을 진행합니다.',
     },
     'en': {
       'appTitle': 'Budget',
@@ -531,6 +538,13 @@ class AppLocalizations {
       'selectMonth': 'Select Month',
       'moveUp': 'Move Up',
       'moveDown': 'Move Down',
+
+      // #27, #29: AI Analysis related
+      'exportImage': 'Export as Image',
+      'analysisConfirmMessage': 'Do you want to request AI analysis?',
+      'remainingAnalyses': 'Remaining analyses today',
+      'noRemainingAnalyses': 'You have used all analyses for today. Please try again tomorrow.',
+      'usageCheckFailed': 'Failed to check remaining count. Proceeding with analysis.',
     },
     'ja': {
       'appTitle': '家計簿',
@@ -793,6 +807,13 @@ class AppLocalizations {
       'selectMonth': '月選択',
       'moveUp': '上に移動',
       'moveDown': '下に移動',
+
+      // #27, #29: AI分析関連
+      'exportImage': '画像としてエクスポート',
+      'analysisConfirmMessage': 'AI分析をリクエストしますか？',
+      'remainingAnalyses': '今日の残り分析回数',
+      'noRemainingAnalyses': '今日の分析回数をすべて使用しました。明日再度お試しください。',
+      'usageCheckFailed': '残り回数の確認に失敗しました。分析を進めます。',
     },
   };
 
