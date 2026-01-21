@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # 소스 코드 복사
 COPY budget_api/main.py .
+COPY budget_api/database.py .
 
 # 포트 설정
 EXPOSE 8000

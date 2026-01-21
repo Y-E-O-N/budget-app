@@ -3,6 +3,7 @@
 # =============================================================================
 # #17: device_id 기반 일일 3회 제한
 # #13: 잔여 기간 지출 계획 조언 추가
+# DB 추상화: SQLite(기본) / PostgreSQL(DATABASE_URL 환경변수로 전환)
 # =============================================================================
 from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,15 +13,17 @@ import httpx
 import os
 import re
 import json
-import sqlite3
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
+# 데이터베이스 추상화 레이어 import
+from database import create_database, get_today_kst
+
 # 환경변수 로드
 load_dotenv()
 
-app = FastAPI(title="Budget AI API", version="2.0.0")
+app = FastAPI(title="Budget AI API", version="2.1.0")
 
 # CORS 설정 (Flutter 웹에서 호출 가능하도록)
 app.add_middleware(
@@ -41,105 +44,11 @@ DAILY_LIMIT = 3
 KST = ZoneInfo("Asia/Seoul")
 
 # =============================================================================
-# #17: SQLite 데이터베이스 설정 (분석 횟수 추적)
+# 데이터베이스 초기화 (SQLite 또는 PostgreSQL)
 # =============================================================================
-DB_PATH = os.path.join(os.path.dirname(__file__), "usage.db")
-
-def init_db():
-    """데이터베이스 초기화"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    # device_id별 일일 사용량 추적 테이블
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS usage (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            device_id TEXT NOT NULL,
-            date TEXT NOT NULL,
-            count INTEGER DEFAULT 0,
-            UNIQUE(device_id, date)
-        )
-    """)
-    # 분석 요청/응답 로그 테이블
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS analysis_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            device_id TEXT NOT NULL,
-            language TEXT,
-            tone TEXT,
-            request_data TEXT,
-            response_data TEXT,
-            status_code INTEGER,
-            error_message TEXT,
-            created_at TEXT NOT NULL
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-
-def save_analysis_log(
-    device_id: str,
-    language: str,
-    tone: str,
-    request_data: str,
-    response_data: str = None,
-    status_code: int = 200,
-    error_message: str = None
-):
-    """분석 요청/응답 로그 저장"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    created_at = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
-    cursor.execute("""
-        INSERT INTO analysis_logs
-        (device_id, language, tone, request_data, response_data, status_code, error_message, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (device_id, language, tone, request_data, response_data, status_code, error_message, created_at))
-    conn.commit()
-    conn.close()
-
-def get_today_kst() -> str:
-    """KST 기준 오늘 날짜 반환 (YYYY-MM-DD)"""
-    return datetime.now(KST).strftime("%Y-%m-%d")
-
-def get_usage_count(device_id: str) -> int:
-    """오늘의 사용 횟수 조회"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    today = get_today_kst()
-    cursor.execute("SELECT count FROM usage WHERE device_id = ? AND date = ?", (device_id, today))
-    result = cursor.fetchone()
-    conn.close()
-    return result[0] if result else 0
-
-def increment_usage(device_id: str) -> int:
-    """사용 횟수 증가 및 현재 횟수 반환"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    today = get_today_kst()
-    # UPSERT: 있으면 증가, 없으면 삽입
-    cursor.execute("""
-        INSERT INTO usage (device_id, date, count) VALUES (?, ?, 1)
-        ON CONFLICT(device_id, date) DO UPDATE SET count = count + 1
-    """, (device_id, today))
-    conn.commit()
-    # 현재 횟수 조회
-    cursor.execute("SELECT count FROM usage WHERE device_id = ? AND date = ?", (device_id, today))
-    result = cursor.fetchone()
-    conn.close()
-    return result[0] if result else 1
-
-def cleanup_old_data():
-    """7일 이상 된 데이터 정리"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cutoff = (datetime.now(KST) - timedelta(days=7)).strftime("%Y-%m-%d")
-    cursor.execute("DELETE FROM usage WHERE date < ?", (cutoff,))
-    conn.commit()
-    conn.close()
-
-# 서버 시작 시 DB 초기화
-init_db()
+# DATABASE_URL 환경변수가 있으면 PostgreSQL, 없으면 SQLite 사용
+db = create_database()
+db.init_db()
 
 # =============================================================================
 # NSFW 필터 설정
@@ -440,7 +349,7 @@ async def get_tones():
 @app.get("/api/usage/{device_id}", response_model=UsageResponse)
 async def get_usage(device_id: str):
     """현재 사용량 조회"""
-    count = get_usage_count(device_id)
+    count = db.get_usage_count(device_id)
     return UsageResponse(
         device_id=device_id,
         date=get_today_kst(),
@@ -461,10 +370,10 @@ async def analyze(req: AnalyzeRequest):
         )
 
     # #17: 일일 사용량 확인
-    current_count = get_usage_count(req.device_id)
+    current_count = db.get_usage_count(req.device_id)
     if current_count >= DAILY_LIMIT:
         # 요청 로그 저장 (Rate Limit)
-        save_analysis_log(
+        db.db.save_analysis_log(
             device_id=req.device_id,
             language=req.language,
             tone=req.tone,
@@ -535,7 +444,7 @@ async def analyze(req: AnalyzeRequest):
                 error_data = response.json()
                 detail = error_data.get("error", {}).get("message", "Gemini API error")
                 # 요청 로그 저장 (Gemini API 에러)
-                save_analysis_log(
+                db.save_analysis_log(
                     device_id=req.device_id,
                     language=req.language,
                     tone=req.tone,
@@ -553,7 +462,7 @@ async def analyze(req: AnalyzeRequest):
 
             if not text:
                 # 요청 로그 저장 (빈 응답)
-                save_analysis_log(
+                db.save_analysis_log(
                     device_id=req.device_id,
                     language=req.language,
                     tone=req.tone,
@@ -576,7 +485,7 @@ async def analyze(req: AnalyzeRequest):
                     analysis_result = json.loads(json_match.group())
                 else:
                     # 요청 로그 저장 (JSON 파싱 에러)
-                    save_analysis_log(
+                    db.save_analysis_log(
                         device_id=req.device_id,
                         language=req.language,
                         tone=req.tone,
@@ -594,7 +503,7 @@ async def analyze(req: AnalyzeRequest):
             analysis_result = filter_nsfw_output(analysis_result)
 
             # #17: 사용량 증가 (성공한 경우에만)
-            new_count = increment_usage(req.device_id)
+            new_count = db.increment_usage(req.device_id)
 
             # #13: spendingPlan 필드 기본값 처리
             if "spendingPlan" not in analysis_result:
@@ -604,7 +513,7 @@ async def analyze(req: AnalyzeRequest):
             analysis_result["remainingAnalyses"] = max(0, DAILY_LIMIT - new_count)
 
             # 요청/응답 로그 저장 (성공)
-            save_analysis_log(
+            db.save_analysis_log(
                 device_id=req.device_id,
                 language=req.language,
                 tone=req.tone,
@@ -614,13 +523,13 @@ async def analyze(req: AnalyzeRequest):
             )
 
             # 주기적으로 오래된 데이터 정리
-            cleanup_old_data()
+            db.cleanup_old_data()
 
             return analysis_result
 
         except httpx.RequestError as e:
             # 요청/응답 로그 저장 (네트워크 에러)
-            save_analysis_log(
+            db.save_analysis_log(
                 device_id=req.device_id,
                 language=req.language,
                 tone=req.tone,
@@ -637,77 +546,19 @@ async def analyze(req: AnalyzeRequest):
 # 로그 조회 API
 # =============================================================================
 @app.get("/api/logs")
-async def get_logs(limit: int = 50, device_id: str = None):
+async def get_logs_endpoint(limit: int = 50, device_id: str = None):
     """분석 요청/응답 로그 조회"""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row  # dict처럼 접근 가능하게
-    cursor = conn.cursor()
-
-    if device_id:
-        cursor.execute("""
-            SELECT * FROM analysis_logs
-            WHERE device_id = ?
-            ORDER BY created_at DESC
-            LIMIT ?
-        """, (device_id, limit))
-    else:
-        cursor.execute("""
-            SELECT * FROM analysis_logs
-            ORDER BY created_at DESC
-            LIMIT ?
-        """, (limit,))
-
-    rows = cursor.fetchall()
-    conn.close()
-
+    logs = db.get_logs(limit=limit, device_id=device_id)
     return {
-        "count": len(rows),
-        "logs": [dict(row) for row in rows]
+        "count": len(logs),
+        "logs": logs
     }
 
 
 @app.get("/api/logs/stats")
-async def get_logs_stats():
+async def get_logs_stats_endpoint():
     """로그 통계 조회"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
-    # 전체 요청 수
-    cursor.execute("SELECT COUNT(*) FROM analysis_logs")
-    total = cursor.fetchone()[0]
-
-    # 성공/실패 통계
-    cursor.execute("SELECT COUNT(*) FROM analysis_logs WHERE status_code = 200")
-    success = cursor.fetchone()[0]
-
-    # 기기별 요청 수
-    cursor.execute("""
-        SELECT device_id, COUNT(*) as count
-        FROM analysis_logs
-        GROUP BY device_id
-        ORDER BY count DESC
-    """)
-    by_device = cursor.fetchall()
-
-    # 날짜별 요청 수
-    cursor.execute("""
-        SELECT DATE(created_at) as date, COUNT(*) as count
-        FROM analysis_logs
-        GROUP BY DATE(created_at)
-        ORDER BY date DESC
-        LIMIT 7
-    """)
-    by_date = cursor.fetchall()
-
-    conn.close()
-
-    return {
-        "total_requests": total,
-        "success_count": success,
-        "error_count": total - success,
-        "by_device": [{"device_id": d[0], "count": d[1]} for d in by_device],
-        "by_date": [{"date": d[0], "count": d[1]} for d in by_date]
-    }
+    return db.get_logs_stats()
 
 
 # =============================================================================
