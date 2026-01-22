@@ -48,3 +48,7 @@ app.*.map.json
 budget_api/.env
 budget_api/usage.db
 budget_api/__pycache__/
+
+
+보안취약점분석보고서.md
+.claude
