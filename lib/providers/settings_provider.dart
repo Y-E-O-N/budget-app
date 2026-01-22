@@ -4,12 +4,20 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 
 class SettingsProvider extends ChangeNotifier {
   late Box _settingsBox;
   final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+
+  // 민감 데이터용 보안 저장소 (API 키 등)
+  static const _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+  );
+  String _geminiApiKey = '';  // 메모리에 캐시
 
   // 기본값
   static const String defaultCurrency = '₩';
@@ -29,8 +37,8 @@ class SettingsProvider extends ChangeNotifier {
   double get fontSizeScale => _settingsBox.get('fontSize', defaultValue: defaultFontSize);
   int get colorTheme => _settingsBox.get('colorTheme', defaultValue: defaultColorTheme);
 
-  // Gemini API 키
-  String get geminiApiKey => _settingsBox.get('geminiApiKey', defaultValue: '');
+  // Gemini API 키 (보안 저장소에서 관리)
+  String get geminiApiKey => _geminiApiKey;
 
   // 알림 설정
   bool get dailyReminderEnabled => _settingsBox.get('dailyReminderEnabled', defaultValue: false);
@@ -52,7 +60,28 @@ class SettingsProvider extends ChangeNotifier {
     _settingsBox = await Hive.openBox('settings');
     tz.initializeTimeZones();
     await _initNotifications();
+    // 보안 저장소에서 API 키 로드
+    await _loadSecureData();
+    // 기존 Hive에 저장된 API 키가 있으면 보안 저장소로 마이그레이션
+    await _migrateApiKeyToSecureStorage();
     notifyListeners();
+  }
+
+  // 보안 데이터 로드
+  Future<void> _loadSecureData() async {
+    _geminiApiKey = await _secureStorage.read(key: 'geminiApiKey') ?? '';
+  }
+
+  // 기존 Hive API 키를 보안 저장소로 마이그레이션
+  Future<void> _migrateApiKeyToSecureStorage() async {
+    final oldKey = _settingsBox.get('geminiApiKey', defaultValue: '');
+    if (oldKey.isNotEmpty && _geminiApiKey.isEmpty) {
+      // 보안 저장소로 이동
+      await _secureStorage.write(key: 'geminiApiKey', value: oldKey);
+      _geminiApiKey = oldKey;
+      // 기존 Hive에서 삭제
+      await _settingsBox.delete('geminiApiKey');
+    }
   }
 
   Future<void> _initNotifications() async {
@@ -108,9 +137,10 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Gemini API 키 설정
+  // Gemini API 키 설정 (보안 저장소에 저장)
   Future<void> setGeminiApiKey(String value) async {
-    await _settingsBox.put('geminiApiKey', value);
+    await _secureStorage.write(key: 'geminiApiKey', value: value);
+    _geminiApiKey = value;
     notifyListeners();
   }
 

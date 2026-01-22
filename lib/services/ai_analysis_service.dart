@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
 import '../utils/result.dart';
 import '../constants/error_messages.dart';
@@ -136,20 +137,39 @@ class AiAnalysisService {
   static const String _deviceIdKey = 'ai_device_id';
   static const String _settingsBoxName = 'settings';
 
+  // 보안 저장소 (Device ID 저장용)
+  static const _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+  );
+
   AiAnalysisService({required this.language, String? apiKey});
 
   // ==========================================================================
-  // #17: Device ID 관리
+  // #17: Device ID 관리 (보안 저장소 사용)
   // ==========================================================================
 
-  /// 기기 고유 ID 가져오기 (없으면 생성하여 저장)
+  /// 기기 고유 ID 가져오기 (보안 저장소에서, 없으면 생성하여 저장)
   Future<String> getDeviceId() async {
-    final box = await Hive.openBox(_settingsBoxName);
-    String? deviceId = box.get(_deviceIdKey);
-    // 없으면 새로 생성
+    // 보안 저장소에서 먼저 확인
+    String? deviceId = await _secureStorage.read(key: _deviceIdKey);
+
+    // 없으면 기존 Hive에서 마이그레이션 시도
+    if (deviceId == null || deviceId.isEmpty) {
+      final box = await Hive.openBox(_settingsBoxName);
+      final oldDeviceId = box.get(_deviceIdKey);
+      if (oldDeviceId != null && oldDeviceId.isNotEmpty) {
+        // 보안 저장소로 마이그레이션
+        await _secureStorage.write(key: _deviceIdKey, value: oldDeviceId);
+        await box.delete(_deviceIdKey);  // 기존 Hive에서 삭제
+        deviceId = oldDeviceId;
+      }
+    }
+
+    // 여전히 없으면 새로 생성
     if (deviceId == null || deviceId.isEmpty) {
       deviceId = const Uuid().v4();
-      await box.put(_deviceIdKey, deviceId);
+      await _secureStorage.write(key: _deviceIdKey, value: deviceId);
     }
     return deviceId;
   }

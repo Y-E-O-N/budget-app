@@ -8,6 +8,22 @@ import 'package:intl/intl.dart';
 import '../utils/result.dart';
 import '../constants/error_messages.dart';
 
+// =============================================================================
+// 보안 상수 정의
+// =============================================================================
+class ImportSecurityConstants {
+  // 파일 크기 제한 (10MB)
+  static const int maxFileSizeBytes = 10 * 1024 * 1024;
+  // 이름 최대 길이
+  static const int maxNameLength = 100;
+  // 금액 최대값 (100억)
+  static const int maxAmount = 10000000000;
+  // 엑셀 매직 바이트 (xlsx = PK zip)
+  static const List<int> xlsxMagicBytes = [0x50, 0x4B, 0x03, 0x04];
+  // xls 매직 바이트 (compound document)
+  static const List<int> xlsMagicBytes = [0xD0, 0xCF, 0x11, 0xE0];
+}
+
 // 불러오기 결과 데이터
 class ImportData {
   final List<ImportedBudget> budgets;
@@ -135,6 +151,19 @@ class ImportService {
         return Result.failure(AppException.file(messageKey: 'fileReadError'));
       }
 
+      // 보안 검증: 파일 크기 확인
+      if (file.bytes!.length > ImportSecurityConstants.maxFileSizeBytes) {
+        return Result.failure(AppException.file(
+          messageKey: 'fileTooLarge',
+          details: '${ImportSecurityConstants.maxFileSizeBytes ~/ (1024 * 1024)}MB',
+        ));
+      }
+
+      // 보안 검증: 매직 바이트 확인 (파일 형식 검증)
+      if (!_isValidExcelFile(file.bytes!)) {
+        return Result.failure(AppException.file(messageKey: 'invalidFileFormat'));
+      }
+
       return parse(file.bytes!);
     } catch (e) {
       return Result.failure(AppException.file(
@@ -142,6 +171,26 @@ class ImportService {
         originalError: e,
       ));
     }
+  }
+
+  /// 매직 바이트로 엑셀 파일 형식 검증
+  bool _isValidExcelFile(Uint8List bytes) {
+    if (bytes.length < 4) return false;
+    // xlsx (PK zip format)
+    if (bytes[0] == ImportSecurityConstants.xlsxMagicBytes[0] &&
+        bytes[1] == ImportSecurityConstants.xlsxMagicBytes[1] &&
+        bytes[2] == ImportSecurityConstants.xlsxMagicBytes[2] &&
+        bytes[3] == ImportSecurityConstants.xlsxMagicBytes[3]) {
+      return true;
+    }
+    // xls (compound document format)
+    if (bytes[0] == ImportSecurityConstants.xlsMagicBytes[0] &&
+        bytes[1] == ImportSecurityConstants.xlsMagicBytes[1] &&
+        bytes[2] == ImportSecurityConstants.xlsMagicBytes[2] &&
+        bytes[3] == ImportSecurityConstants.xlsMagicBytes[3]) {
+      return true;
+    }
+    return false;
   }
 
   /// 엑셀 파일 파싱 (Result 버전)
@@ -279,16 +328,36 @@ class ImportService {
 
       if (nameCell == null || nameCell.value == null) continue;
 
-      final name = _getCellString(nameCell);
+      // 보안: 이름 길이 제한 적용
+      final name = _sanitizeName(_getCellString(nameCell));
       // "합계", "Total", "合計" 행 제외
       if (_isTotalRow(name)) continue;
 
-      final amount = amountCell != null ? _parseCurrency(_getCellString(amountCell)) : 0;
+      // 보안: 금액 상한 적용
+      final amount = amountCell != null ? _parseCurrencySafe(_getCellString(amountCell)) : 0;
 
       if (name.isNotEmpty && amount > 0) {
         budgets.add(ImportedBudget(name: name, amount: amount));
       }
     }
+  }
+
+  // 보안: 이름 길이 제한 및 정제
+  String _sanitizeName(String name) {
+    if (name.length > ImportSecurityConstants.maxNameLength) {
+      return name.substring(0, ImportSecurityConstants.maxNameLength);
+    }
+    return name.trim();
+  }
+
+  // 보안: 금액 파싱 (상한 적용)
+  int _parseCurrencySafe(String value) {
+    final amount = _parseCurrency(value);
+    if (amount > ImportSecurityConstants.maxAmount) {
+      return ImportSecurityConstants.maxAmount;
+    }
+    if (amount < 0) return 0;  // 음수 방지
+    return amount;
   }
 
   // 세부예산 시트 파싱
@@ -303,9 +372,11 @@ class ImportService {
 
       if (budgetNameCell == null || subNameCell == null) continue;
 
-      final budgetName = _getCellString(budgetNameCell);
-      final subName = _getCellString(subNameCell);
-      final amount = _parseCurrency(_getCellString(amountCell));
+      // 보안: 이름 길이 제한 적용
+      final budgetName = _sanitizeName(_getCellString(budgetNameCell));
+      final subName = _sanitizeName(_getCellString(subNameCell));
+      // 보안: 금액 상한 적용
+      final amount = _parseCurrencySafe(_getCellString(amountCell));
 
       if (budgetName.isNotEmpty && subName.isNotEmpty && amount > 0) {
         subBudgets.add(ImportedSubBudget(
@@ -337,10 +408,12 @@ class ImportService {
       if (dateCell == null || budgetNameCell == null || amountCell == null) continue;
 
       final date = _parseDate(_getCellString(dateCell));
-      final budgetName = _getCellString(budgetNameCell);
-      final subBudgetName = _getCellString(subBudgetNameCell);
-      final memo = _getCellString(memoCell);
-      final amount = _parseCurrency(_getCellString(amountCell));
+      // 보안: 이름 및 메모 길이 제한 적용
+      final budgetName = _sanitizeName(_getCellString(budgetNameCell));
+      final subBudgetName = _sanitizeName(_getCellString(subBudgetNameCell));
+      final memo = _sanitizeName(_getCellString(memoCell));
+      // 보안: 금액 상한 적용
+      final amount = _parseCurrencySafe(_getCellString(amountCell));
 
       if (date != null && budgetName.isNotEmpty && budgetName != '-' && amount > 0) {
         // 예산이 목록에 없으면 추가

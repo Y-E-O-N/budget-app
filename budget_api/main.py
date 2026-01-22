@@ -5,14 +5,17 @@
 # #13: 잔여 기간 지출 계획 조언 추가
 # DB 추상화: SQLite(기본) / PostgreSQL(DATABASE_URL 환경변수로 전환)
 # =============================================================================
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
+from collections import defaultdict
 import httpx
 import os
 import re
 import json
+import uuid
+import time
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
@@ -25,13 +28,31 @@ load_dotenv()
 
 app = FastAPI(title="Budget AI API", version="2.1.0")
 
-# CORS 설정 (Flutter 웹에서 호출 가능하도록)
+# =============================================================================
+# CORS 설정 (보안 강화)
+# =============================================================================
+# 환경변수에서 허용 도메인 로드 (쉼표로 구분)
+# 예: ALLOWED_ORIGINS=https://myapp.com,https://app.myapp.com
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",")
+# 빈 문자열 제거
+ALLOWED_ORIGINS = [origin.strip() for origin in ALLOWED_ORIGINS if origin.strip()]
+
+# 개발 환경용 기본값 (프로덕션에서는 반드시 ALLOWED_ORIGINS 환경변수 설정 필요)
+if not ALLOWED_ORIGINS:
+    # 개발 환경: localhost만 허용
+    ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://localhost:8080",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8080",
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,  # 특정 도메인만 허용
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],  # 필요한 메서드만 허용
+    allow_headers=["Content-Type", "Authorization", "X-Admin-Key"],  # 필요한 헤더만 허용
 )
 
 # Gemini API 설정
@@ -39,9 +60,75 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = "gemini-2.5-flash-lite-preview-09-2025"
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 
+# =============================================================================
+# 관리자 인증 설정
+# =============================================================================
+# 관리자 API 키 (로그 조회 등 관리 기능 접근용)
+ADMIN_API_KEY = os.getenv("ADMIN_API_KEY")
+
+def verify_admin_key(x_admin_key: str = Header(None, alias="X-Admin-Key")) -> bool:
+    """관리자 API 키 검증"""
+    # ADMIN_API_KEY 미설정 시 관리 기능 비활성화
+    if not ADMIN_API_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="Admin API is not configured"
+        )
+    # API 키 검증
+    if not x_admin_key or x_admin_key != ADMIN_API_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or missing admin API key"
+        )
+    return True
+
 # #17: 일일 분석 횟수 제한
 DAILY_LIMIT = 3
 KST = ZoneInfo("Asia/Seoul")
+
+# =============================================================================
+# IP 기반 Rate Limiting (분당 요청 제한)
+# =============================================================================
+# 분당 최대 요청 수
+IP_RATE_LIMIT_PER_MINUTE = int(os.getenv("IP_RATE_LIMIT_PER_MINUTE", "10"))
+# IP별 요청 기록 저장 (메모리 기반, 프로덕션에서는 Redis 권장)
+ip_request_times: dict[str, list[float]] = defaultdict(list)
+
+def get_client_ip(request: Request) -> str:
+    """클라이언트 IP 추출 (프록시 고려)"""
+    # X-Forwarded-For 헤더 확인 (프록시/로드밸런서 뒤에 있는 경우)
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        # 첫 번째 IP가 실제 클라이언트 IP
+        return forwarded.split(",")[0].strip()
+    # X-Real-IP 헤더 확인
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip
+    # 직접 연결된 클라이언트 IP
+    return request.client.host if request.client else "unknown"
+
+def check_ip_rate_limit(ip: str) -> bool:
+    """IP별 분당 요청 제한 확인"""
+    now = time.time()
+    minute_ago = now - 60
+    # 1분 이내 요청만 유지
+    ip_request_times[ip] = [t for t in ip_request_times[ip] if t > minute_ago]
+    # 제한 확인
+    if len(ip_request_times[ip]) >= IP_RATE_LIMIT_PER_MINUTE:
+        return False
+    # 현재 요청 기록
+    ip_request_times[ip].append(now)
+    return True
+
+def cleanup_ip_records():
+    """오래된 IP 기록 정리 (메모리 관리)"""
+    now = time.time()
+    minute_ago = now - 60
+    # 빈 기록 제거
+    empty_ips = [ip for ip, times in ip_request_times.items() if not times or all(t <= minute_ago for t in times)]
+    for ip in empty_ips:
+        del ip_request_times[ip]
 
 # =============================================================================
 # 데이터베이스 초기화 (SQLite 또는 PostgreSQL)
@@ -51,8 +138,10 @@ db = create_database()
 db.init_db()
 
 # =============================================================================
-# NSFW 필터 설정
+# NSFW 필터 설정 (강화된 버전)
 # =============================================================================
+import unicodedata
+
 NSFW_KEYWORDS = [
     # 욕설/비속어 (한국어)
     "시발", "씨발", "병신", "지랄", "새끼", "개새끼", "미친", "존나", "좆",
@@ -62,11 +151,49 @@ NSFW_KEYWORDS = [
     "くそ", "ちくしょう", "馬鹿",
 ]
 
+# 한글 자모 분리 변형 패턴 (예: "시ㅂ발" → "시발")
+KOREAN_JAMO_VARIANTS = {
+    "ㅅㅣㅂㅏㄹ": "시발", "ㅆㅣㅂㅏㄹ": "씨발",
+    "ㅂㅕㅇㅅㅣㄴ": "병신", "ㅈㅣㄹㅏㄹ": "지랄",
+    "ㅅㅐㄲㅣ": "새끼", "ㅈㅗㄴㄴㅏ": "존나",
+}
+
+# 공백/특수문자 삽입 우회 탐지용 정규식 패턴
+def _create_spaced_pattern(word: str) -> str:
+    """단어 사이에 공백/특수문자가 삽입된 패턴 생성"""
+    # 각 글자 사이에 선택적 공백/특수문자 허용
+    chars = list(word)
+    pattern = r"[\s\.\-_]*".join(re.escape(c) for c in chars)
+    return pattern
+
+# 정규화된 NSFW 패턴 (공백 삽입 우회 탐지)
+NSFW_PATTERNS = [re.compile(_create_spaced_pattern(kw), re.IGNORECASE) for kw in NSFW_KEYWORDS]
+
+def _normalize_text(text: str) -> str:
+    """텍스트 정규화 (유니코드 정규화 + 공백 제거)"""
+    # 유니코드 정규화 (NFC: 조합형으로 통일)
+    normalized = unicodedata.normalize("NFC", text)
+    return normalized
+
+def _normalize_korean_jamo(text: str) -> str:
+    """한글 자모 분리 변형 복원"""
+    result = text
+    for variant, original in KOREAN_JAMO_VARIANTS.items():
+        result = result.replace(variant, original)
+    return result
+
 def filter_nsfw_input(text: str) -> str:
-    """입력 텍스트에서 NSFW 콘텐츠 필터링"""
-    filtered = text
+    """입력 텍스트에서 NSFW 콘텐츠 필터링 (강화 버전)"""
+    # 1. 유니코드 정규화
+    filtered = _normalize_text(text)
+    # 2. 한글 자모 변형 복원
+    filtered = _normalize_korean_jamo(filtered)
+    # 3. 기본 키워드 필터링
     for keyword in NSFW_KEYWORDS:
         pattern = re.compile(re.escape(keyword), re.IGNORECASE)
+        filtered = pattern.sub("***", filtered)
+    # 4. 공백 삽입 우회 패턴 필터링
+    for pattern in NSFW_PATTERNS:
         filtered = pattern.sub("***", filtered)
     return filtered
 
@@ -297,13 +424,35 @@ def get_error_message(key: str, language: str, **kwargs) -> str:
     return message.format(**kwargs) if kwargs else message
 
 # =============================================================================
+# Device ID 검증 함수
+# =============================================================================
+def validate_device_id(device_id: str) -> bool:
+    """UUID v4 형식 검증"""
+    if not device_id or len(device_id) > 50:  # 길이 제한
+        return False
+    try:
+        # UUID 형식 검증
+        uuid_obj = uuid.UUID(device_id, version=4)
+        return str(uuid_obj) == device_id.lower()
+    except ValueError:
+        return False
+
+# =============================================================================
 # 요청/응답 모델
 # =============================================================================
 class AnalyzeRequest(BaseModel):
     data: str
     language: str = "ko"
     tone: str = "gentle"  # gentle, praise, factual, coach, humorous
-    device_id: str  # #17: 기기 고유 식별자 (필수)
+    device_id: str  # #17: 기기 고유 식별자 (필수, UUID v4 형식)
+
+    # Device ID 검증 (Pydantic v2)
+    @field_validator('device_id')
+    @classmethod
+    def validate_device_id_format(cls, v: str) -> str:
+        if not validate_device_id(v):
+            raise ValueError('Invalid device_id format. Must be UUID v4.')
+        return v.lower()  # 소문자로 정규화
 
 class PatternResponse(BaseModel):
     mainCategory: str
@@ -335,7 +484,8 @@ class UsageResponse(BaseModel):
 @app.get("/health")
 async def health_check():
     """헬스 체크"""
-    return {"status": "ok", "api_key_configured": bool(GEMINI_API_KEY)}
+    # API 키 존재 여부는 노출하지 않음 (보안)
+    return {"status": "ok"}
 
 @app.get("/api/tones")
 async def get_tones():
@@ -349,6 +499,13 @@ async def get_tones():
 @app.get("/api/usage/{device_id}", response_model=UsageResponse)
 async def get_usage(device_id: str):
     """현재 사용량 조회"""
+    # Device ID 형식 검증 (UUID v4)
+    if not validate_device_id(device_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid device_id format. Must be UUID v4."
+        )
+    device_id = device_id.lower()  # 소문자로 정규화
     count = db.get_usage_count(device_id)
     return UsageResponse(
         device_id=device_id,
@@ -359,21 +516,27 @@ async def get_usage(device_id: str):
     )
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
-async def analyze(req: AnalyzeRequest):
-    """AI 가계부 분석 (#17: 일일 3회 제한 적용)"""
+async def analyze(req: AnalyzeRequest, request: Request):
+    """AI 가계부 분석 (#17: 일일 3회 제한 적용, IP Rate Limiting 추가)"""
+    # device_id 형식은 Pydantic에서 자동 검증 (UUID v4)
 
-    # #17: device_id 필수 확인
-    if not req.device_id or req.device_id.strip() == "":
+    # IP 기반 분당 요청 제한 확인
+    client_ip = get_client_ip(request)
+    if not check_ip_rate_limit(client_ip):
         raise HTTPException(
-            status_code=400,
-            detail=get_error_message("device_id_required", req.language)
+            status_code=429,
+            detail="Too many requests. Please wait a moment.",
+            headers={"Retry-After": "60"}
         )
+
+    # 주기적으로 IP 기록 정리 (매 요청마다 실행, 가벼운 작업)
+    cleanup_ip_records()
 
     # #17: 일일 사용량 확인
     current_count = db.get_usage_count(req.device_id)
     if current_count >= DAILY_LIMIT:
         # 요청 로그 저장 (Rate Limit)
-        db.db.save_analysis_log(
+        db.save_analysis_log(
             device_id=req.device_id,
             language=req.language,
             tone=req.tone,
@@ -415,7 +578,8 @@ async def analyze(req: AnalyzeRequest):
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
             response = await client.post(
-                f"{GEMINI_URL}?key={GEMINI_API_KEY}",
+                GEMINI_URL,  # URL에서 API 키 제거
+                headers={"x-goog-api-key": GEMINI_API_KEY},  # 헤더로 API 키 전송 (보안 강화)
                 json={
                     "contents": [{
                         "role": "user",
@@ -442,7 +606,8 @@ async def analyze(req: AnalyzeRequest):
 
             if response.status_code != 200:
                 error_data = response.json()
-                detail = error_data.get("error", {}).get("message", "Gemini API error")
+                # 상세 에러는 로그에만 저장 (보안: 사용자에게 노출하지 않음)
+                internal_detail = error_data.get("error", {}).get("message", "Unknown error")
                 # 요청 로그 저장 (Gemini API 에러)
                 db.save_analysis_log(
                     device_id=req.device_id,
@@ -450,11 +615,12 @@ async def analyze(req: AnalyzeRequest):
                     tone=req.tone,
                     request_data=req.data,
                     status_code=response.status_code,
-                    error_message=f"Gemini API error: {detail}"
+                    error_message=f"Gemini API error: {internal_detail}"
                 )
+                # 사용자에게는 일반화된 에러 메시지만 반환
                 raise HTTPException(
-                    status_code=response.status_code,
-                    detail=get_error_message("gemini_error", req.language, detail=detail)
+                    status_code=502,  # Bad Gateway (외부 API 에러)
+                    detail=get_error_message("gemini_error", req.language, detail="AI 서비스 일시 오류")
                 )
 
             result = response.json()
@@ -528,26 +694,31 @@ async def analyze(req: AnalyzeRequest):
             return analysis_result
 
         except httpx.RequestError as e:
-            # 요청/응답 로그 저장 (네트워크 에러)
+            # 요청/응답 로그 저장 (네트워크 에러) - 상세 에러는 로그에만 저장
             db.save_analysis_log(
                 device_id=req.device_id,
                 language=req.language,
                 tone=req.tone,
                 request_data=req.data,
                 status_code=500,
-                error_message=str(e)
+                error_message=f"Network error: {str(e)}"
             )
+            # 사용자에게는 일반화된 메시지만 반환 (보안)
             raise HTTPException(
-                status_code=500,
-                detail=get_error_message("network_error", req.language, detail=str(e))
+                status_code=503,  # Service Unavailable
+                detail=get_error_message("network_error", req.language, detail="서비스 연결 실패")
             )
 
 # =============================================================================
-# 로그 조회 API
+# 로그 조회 API (관리자 인증 필요)
 # =============================================================================
 @app.get("/api/logs")
-async def get_logs_endpoint(limit: int = 50, device_id: str = None):
-    """분석 요청/응답 로그 조회"""
+async def get_logs_endpoint(
+    limit: int = 50,
+    device_id: str = None,
+    _: bool = Depends(verify_admin_key)  # 관리자 인증 필수
+):
+    """분석 요청/응답 로그 조회 (관리자 전용)"""
     logs = db.get_logs(limit=limit, device_id=device_id)
     return {
         "count": len(logs),
@@ -556,8 +727,10 @@ async def get_logs_endpoint(limit: int = 50, device_id: str = None):
 
 
 @app.get("/api/logs/stats")
-async def get_logs_stats_endpoint():
-    """로그 통계 조회"""
+async def get_logs_stats_endpoint(
+    _: bool = Depends(verify_admin_key)  # 관리자 인증 필수
+):
+    """로그 통계 조회 (관리자 전용)"""
     return db.get_logs_stats()
 
 
