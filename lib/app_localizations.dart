@@ -275,8 +275,11 @@ class AppLocalizations {
       'analysisConfirmMessage': 'AI 분석을 요청하시겠습니까?',
       'remainingAnalyses': '오늘 남은 분석 횟수',
       'noRemainingAnalyses': '오늘 분석 횟수를 모두 사용했습니다. 내일 다시 시도해주세요.',
-      'usageCheckFailed': '잔여 횟수 조회 실패. 분석을 진행합니다.',
+      'usageCheckFailed': '잔여 횟수를 조회할 수 없습니다.',
       'downloadStarted': '다운로드가 시작되었습니다',  // #31
+      'cannotProceedWithoutUsageCheck': '네트워크 연결을 확인하고 다시 시도해주세요.',  // #32-33
+      'saved': '저장되었습니다',  // #35
+      'duplicateExpense': '지출 복제',  // #14
     },
     'en': {
       'appTitle': 'Budget',
@@ -545,8 +548,11 @@ class AppLocalizations {
       'analysisConfirmMessage': 'Do you want to request AI analysis?',
       'remainingAnalyses': 'Remaining analyses today',
       'noRemainingAnalyses': 'You have used all analyses for today. Please try again tomorrow.',
-      'usageCheckFailed': 'Failed to check remaining count. Proceeding with analysis.',
+      'usageCheckFailed': 'Cannot check remaining count.',
       'downloadStarted': 'Download started',  // #31
+      'cannotProceedWithoutUsageCheck': 'Please check your network connection and try again.',  // #32-33
+      'saved': 'Saved',  // #35
+      'duplicateExpense': 'Duplicate Expense',  // #14
     },
     'ja': {
       'appTitle': '家計簿',
@@ -815,8 +821,11 @@ class AppLocalizations {
       'analysisConfirmMessage': 'AI分析をリクエストしますか？',
       'remainingAnalyses': '今日の残り分析回数',
       'noRemainingAnalyses': '今日の分析回数をすべて使用しました。明日再度お試しください。',
-      'usageCheckFailed': '残り回数の確認に失敗しました。分析を進めます。',
+      'usageCheckFailed': '残り回数を確認できません。',
       'downloadStarted': 'ダウンロードが開始されました',  // #31
+      'cannotProceedWithoutUsageCheck': 'ネットワーク接続を確認して再度お試しください。',  // #32-33
+      'saved': '保存しました',  // #35
+      'duplicateExpense': '支出を複製',  // #14
     },
   };
 

@@ -422,6 +422,8 @@ class _BudgetTabState extends State<BudgetTab> {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: Text(loc.tr('addBudget')),
+          // #36: 키보드가 올라올 때 다이얼로그가 화면 밖으로 나가지 않도록 insetPadding 조정
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           content: SingleChildScrollView(  // #1: 키보드 겹침 방지
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               TextField(controller: nameController, decoration: InputDecoration(labelText: loc.tr('budgetName'), hintText: loc.tr('budgetNameHint'), border: const OutlineInputBorder())),
@@ -589,6 +591,8 @@ class _BudgetRow extends StatelessWidget {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: Text(loc.tr('editBudget')),
+          // #36: 키보드가 올라올 때 다이얼로그가 화면 밖으로 나가지 않도록 insetPadding 조정
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           content: SingleChildScrollView(  // #1: 키보드 겹침 방지
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               TextField(controller: nameController, decoration: InputDecoration(labelText: loc.tr('budgetName'), border: const OutlineInputBorder())),

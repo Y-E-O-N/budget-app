@@ -938,11 +938,32 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
         );
       },
       onFailure: (error) {
-        // 사용량 조회 실패 시에도 분석은 진행 (서버에서 차단됨)
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(loc.tr('usageCheckFailed')), backgroundColor: Colors.orange),
+        // #32-33: 사용량 조회 실패 시 분석을 진행하지 않고 사용자에게 안내
+        showDialog(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Row(children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange),
+              const SizedBox(width: 8),
+              Text(loc.tr('error')),
+            ]),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(loc.tr('usageCheckFailed')),
+                const SizedBox(height: 12),
+                Text(
+                  loc.tr('cannotProceedWithoutUsageCheck'),
+                  style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.outline),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(loc.tr('confirm'))),
+            ],
+          ),
         );
-        _startBackgroundAnalysis(context, provider, settings, analysis, startDate, endDate, tone);
       },
     );
   }

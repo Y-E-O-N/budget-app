@@ -224,6 +224,8 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
     String? errorMessage;
     showDialog(context: context, builder: (context) => StatefulBuilder(builder: (context, setState) => AlertDialog(
       title: Text(loc.tr('addSubBudget')),
+      // #36: 키보드가 올라올 때 다이얼로그가 화면 밖으로 나가지 않도록 insetPadding 조정
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       content: SingleChildScrollView(  // #1: 키보드 겹침 방지
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           TextField(controller: nameController, decoration: InputDecoration(labelText: loc.tr('subBudgetName'), hintText: loc.tr('subBudgetNameHint'), border: const OutlineInputBorder())),
@@ -260,6 +262,8 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
 
     showDialog(context: context, builder: (dialogContext) => StatefulBuilder(builder: (dialogContext, setState) => AlertDialog(
       title: Text(loc.tr('addExpense')),
+      // #36: 키보드가 올라올 때 다이얼로그가 화면 밖으로 나가지 않도록 insetPadding 조정
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
         // 날짜 선택 + OCR 스캔 버튼
         Row(children: [
@@ -482,6 +486,8 @@ class _SubBudgetRow extends StatelessWidget {
     String? errorMessage;
     showDialog(context: context, builder: (context) => StatefulBuilder(builder: (context, setState) => AlertDialog(
       title: Text(loc.tr('editSubBudget')),
+      // #36: 키보드가 올라올 때 다이얼로그가 화면 밖으로 나가지 않도록 insetPadding 조정
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       content: SingleChildScrollView(  // #1: 키보드 겹침 방지
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           TextField(controller: nameController, decoration: InputDecoration(labelText: loc.tr('subBudgetName'), border: const OutlineInputBorder())),
@@ -545,6 +551,11 @@ class _ExpenseRow extends StatelessWidget {
         child: Text('${expense.memo ?? loc.tr('expense')} - ${context.formatCurrency(expense.amount)}', style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
       ),
       const Divider(height: 1),
+      // #35: 수정 기능 추가
+      ListTile(leading: const Icon(Icons.edit), title: Text(loc.tr('edit')), onTap: () {
+        Navigator.pop(context);
+        _editExpense(context);
+      }),
       ListTile(leading: const Icon(Icons.copy), title: Text(loc.tr('duplicate')), onTap: () {
         Navigator.pop(context);
         _duplicateExpense(context);
@@ -569,6 +580,8 @@ class _ExpenseRow extends StatelessWidget {
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setState) => AlertDialog(
           title: Text(loc.tr('duplicateExpense')),
+          // #36: 키보드가 올라올 때 다이얼로그가 화면 밖으로 나가지 않도록 insetPadding 조정
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -626,6 +639,113 @@ class _ExpenseRow extends StatelessWidget {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.tr('duplicated')), duration: const Duration(seconds: 2)));
               },
               child: Text(loc.tr('add')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // #35: 지출 내역 수정 기능
+  void _editExpense(BuildContext context) {
+    final loc = context.loc;
+    final provider = context.read<BudgetProvider>();
+    final subBudgets = provider.getSubBudgets(expense.budgetId);
+    DateTime selectedDate = expense.date;
+    final amountController = TextEditingController(text: NumberFormat('#,###').format(expense.amount));
+    final memoController = TextEditingController(text: expense.memo ?? '');
+    String? selectedSubBudgetId = expense.subBudgetId;
+    String? errorMessage;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setState) => AlertDialog(
+          title: Text(loc.tr('editExpense')),
+          // #36: 키보드가 올라올 때 다이얼로그가 화면 밖으로 나가지 않도록 insetPadding 조정
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 날짜 선택
+                Row(children: [
+                  Text(loc.tr('date'), style: const TextStyle(fontWeight: FontWeight.w500)),
+                  const Spacer(),
+                  TextButton.icon(
+                    icon: const Icon(Icons.calendar_today, size: 18),
+                    label: Text(DateFormat('yyyy-MM-dd').format(selectedDate)),
+                    onPressed: () async {
+                      final picked = await showDatePicker(
+                        context: dialogContext,
+                        initialDate: selectedDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (picked != null) setState(() => selectedDate = picked);
+                    },
+                  ),
+                ]),
+                const SizedBox(height: 12),
+                // 세부예산 선택
+                if (subBudgets.isNotEmpty) ...[
+                  DropdownButtonFormField<String?>(
+                    value: selectedSubBudgetId,
+                    decoration: InputDecoration(labelText: loc.tr('subBudgetOptional'), border: const OutlineInputBorder()),
+                    items: [
+                      DropdownMenuItem(value: null, child: Text(loc.tr('notSelected'))),
+                      ...subBudgets.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name))),
+                    ],
+                    onChanged: (value) => setState(() => selectedSubBudgetId = value),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                // 메모
+                TextField(
+                  controller: memoController,
+                  decoration: InputDecoration(labelText: loc.tr('memo'), border: const OutlineInputBorder()),
+                ),
+                const SizedBox(height: 16),
+                // 금액
+                TextField(
+                  controller: amountController,
+                  decoration: InputDecoration(
+                    labelText: loc.tr('amount'),
+                    suffixText: context.currency,
+                    border: const OutlineInputBorder(),
+                    errorText: errorMessage,
+                  ),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()],
+                  onChanged: (value) { if (errorMessage != null) setState(() => errorMessage = null); },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(loc.tr('cancel'))),
+            FilledButton(
+              onPressed: () {
+                final amount = int.tryParse(amountController.text.replaceAll(',', '')) ?? 0;
+                if (amount <= 0) {
+                  setState(() => errorMessage = loc.tr('numberOnlyError'));
+                  return;
+                }
+                // 수정된 지출 저장 (새 Expense 객체 생성 - subBudgetId를 null로 변경 가능하도록)
+                final updatedExpense = Expense(
+                  id: expense.id,
+                  budgetId: expense.budgetId,
+                  subBudgetId: selectedSubBudgetId,  // null 허용
+                  amount: amount,
+                  date: selectedDate,
+                  memo: memoController.text.trim().isEmpty ? null : memoController.text.trim(),
+                );
+                provider.updateExpense(updatedExpense);
+                Navigator.pop(dialogContext);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.tr('saved')), duration: const Duration(seconds: 2)));
+              },
+              child: Text(loc.tr('save')),
             ),
           ],
         ),
