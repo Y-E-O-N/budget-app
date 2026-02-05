@@ -568,10 +568,11 @@ class _ExpenseRow extends StatelessWidget {
   }
 
   // #14: 복제 기능 수정 - 날짜 선택 후 등록
-  // #38: 금액 오류 시 에러 메시지 표시
+  // #38: 금액 오류 시 에러 메시지 표시, 날짜 선택 시 회색 화면 버그 수정
   void _duplicateExpense(BuildContext context) {
     final loc = context.loc;
     final provider = context.read<BudgetProvider>();
+    final rootContext = context;  // #38: DatePicker용 외부 context 저장
     DateTime selectedDate = DateTime.now();  // 기본값: 오늘
     final amountController = TextEditingController(text: NumberFormat('#,###').format(expense.amount));
     final memoController = TextEditingController(text: expense.memo ?? '');
@@ -597,8 +598,9 @@ class _ExpenseRow extends StatelessWidget {
                     icon: const Icon(Icons.calendar_today, size: 18),
                     label: Text(DateFormat('yyyy-MM-dd').format(selectedDate)),
                     onPressed: () async {
+                      // #38: dialogContext 대신 rootContext 사용하여 회색 화면 버그 수정
                       final picked = await showDatePicker(
-                        context: dialogContext,
+                        context: rootContext,
                         initialDate: selectedDate,
                         firstDate: DateTime(2020),
                         lastDate: DateTime.now().add(const Duration(days: 365)),
@@ -659,9 +661,11 @@ class _ExpenseRow extends StatelessWidget {
   }
 
   // #35: 지출 내역 수정 기능
+  // #38: 날짜 선택 시 회색 화면 버그 수정
   void _editExpense(BuildContext context) {
     final loc = context.loc;
     final provider = context.read<BudgetProvider>();
+    final rootContext = context;  // #38: DatePicker용 외부 context 저장
     final subBudgets = provider.getSubBudgets(expense.budgetId);
     DateTime selectedDate = expense.date;
     final amountController = TextEditingController(text: NumberFormat('#,###').format(expense.amount));
@@ -689,8 +693,9 @@ class _ExpenseRow extends StatelessWidget {
                     icon: const Icon(Icons.calendar_today, size: 18),
                     label: Text(DateFormat('yyyy-MM-dd').format(selectedDate)),
                     onPressed: () async {
+                      // #38: dialogContext 대신 rootContext 사용하여 회색 화면 버그 수정
                       final picked = await showDatePicker(
-                        context: dialogContext,
+                        context: rootContext,
                         initialDate: selectedDate,
                         firstDate: DateTime(2020),
                         lastDate: DateTime.now().add(const Duration(days: 365)),
