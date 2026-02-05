@@ -568,12 +568,14 @@ class _ExpenseRow extends StatelessWidget {
   }
 
   // #14: 복제 기능 수정 - 날짜 선택 후 등록
+  // #38: 금액 오류 시 에러 메시지 표시
   void _duplicateExpense(BuildContext context) {
     final loc = context.loc;
     final provider = context.read<BudgetProvider>();
     DateTime selectedDate = DateTime.now();  // 기본값: 오늘
     final amountController = TextEditingController(text: NumberFormat('#,###').format(expense.amount));
     final memoController = TextEditingController(text: expense.memo ?? '');
+    String? errorMessage;  // #38: 에러 메시지 추가
 
     showDialog(
       context: context,
@@ -612,12 +614,18 @@ class _ExpenseRow extends StatelessWidget {
                   decoration: InputDecoration(labelText: loc.tr('memo'), border: const OutlineInputBorder()),
                 ),
                 const SizedBox(height: 16),
-                // 금액
+                // 금액 (#38: 에러 메시지 표시)
                 TextField(
                   controller: amountController,
-                  decoration: InputDecoration(labelText: loc.tr('amount'), suffixText: context.currency, border: const OutlineInputBorder()),
+                  decoration: InputDecoration(
+                    labelText: loc.tr('amount'),
+                    suffixText: context.currency,
+                    border: const OutlineInputBorder(),
+                    errorText: errorMessage,
+                  ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()],
+                  onChanged: (value) { if (errorMessage != null) setState(() => errorMessage = null); },
                 ),
               ],
             ),
@@ -627,7 +635,11 @@ class _ExpenseRow extends StatelessWidget {
             FilledButton(
               onPressed: () {
                 final amount = int.tryParse(amountController.text.replaceAll(',', '')) ?? 0;
-                if (amount <= 0) return;
+                // #38: 금액 오류 시 에러 메시지 표시
+                if (amount <= 0) {
+                  setState(() => errorMessage = loc.tr('numberOnlyError'));
+                  return;
+                }
                 provider.addExpense(
                   expense.budgetId,
                   expense.subBudgetId,
