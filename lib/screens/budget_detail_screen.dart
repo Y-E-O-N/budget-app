@@ -249,10 +249,12 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
     )));
   }
 
+  // #38: 날짜 선택 시 회색 화면 버그 수정
   void _showAddExpenseDialog(BuildContext context, List<SubBudget> subBudgets) {
     final loc = context.loc;
     final settings = context.read<SettingsProvider>();
     final provider = context.read<BudgetProvider>();
+    final rootContext = context;  // #38: DatePicker용 외부 context 저장
     final amountController = TextEditingController();
     final memoController = TextEditingController();
     DateTime selectedDate = DateTime.now();
@@ -272,7 +274,8 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
             leading: const Icon(Icons.calendar_today),
             title: Text(DateFormat('yyyy. M. d').format(selectedDate)),
             onTap: () async {
-              final date = await showDatePicker(context: dialogContext, initialDate: selectedDate, firstDate: DateTime(2000), lastDate: DateTime(2100));
+              // #38: dialogContext 대신 rootContext 사용하여 회색 화면 버그 수정
+              final date = await showDatePicker(context: rootContext, initialDate: selectedDate, firstDate: DateTime(2000), lastDate: DateTime(2100));
               if (date != null) setState(() => selectedDate = date);
             },
           )),
