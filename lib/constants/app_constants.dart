@@ -8,7 +8,7 @@ class AppConstants {
   // API 설정
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://134.185.115.168',
+    defaultValue: 'https://budget-log.duckdns.org',
   );
   static const Duration apiTimeout = Duration(seconds: 60);
 
