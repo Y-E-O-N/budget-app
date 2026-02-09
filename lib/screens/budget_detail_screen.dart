@@ -156,7 +156,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
                       decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.3)))),
                       child: Row(children: [
                         // #25: 날짜 헤더 터치로 정렬 순서 변경
-                        Expanded(flex: 2, child: InkWell(
+                        SizedBox(width: 40, child: InkWell(
                           onTap: () => setState(() {
                             _expenseSortOption = _expenseSortOption == ExpenseSortOption.dateAsc
                                 ? ExpenseSortOption.dateDesc
@@ -174,9 +174,10 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
                             ),
                           ]),
                         )),
-                        Expanded(flex: 3, child: Text(loc.tr('memo'), style: _headerStyle(context))),
-                        Expanded(flex: 2, child: Text(loc.tr('subBudget'), style: _headerStyle(context))),
-                        Expanded(flex: 2, child: Text(loc.tr('amount'), style: _headerStyle(context), textAlign: TextAlign.right)),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(loc.tr('memo'), style: _headerStyle(context))),
+                        SizedBox(width: 76, child: Text(loc.tr('subBudget'), style: _headerStyle(context), overflow: TextOverflow.ellipsis)),
+                        SizedBox(width: 88, child: Text(loc.tr('amount'), style: _headerStyle(context), textAlign: TextAlign.right)),
                       ]),
                     ),
                     if (expenses.isEmpty)
@@ -536,10 +537,11 @@ class _ExpenseRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         decoration: BoxDecoration(border: isLast ? null : Border(bottom: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.3)))),
         child: Row(children: [
-          Expanded(flex: 2, child: Text(DateFormat('M/d').format(expense.date), style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.outline))),
-          Expanded(flex: 3, child: Text(expense.memo ?? '-', style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis)),
-          Expanded(flex: 2, child: Text(subBudgetName ?? '-', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline), overflow: TextOverflow.ellipsis)),
-          Expanded(flex: 2, child: Text('-${context.formatCurrency(expense.amount)}', style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.error, fontWeight: FontWeight.w500), textAlign: TextAlign.right)),
+          SizedBox(width: 40, child: Text(DateFormat('M/d').format(expense.date), style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.outline))),
+          const SizedBox(width: 8),
+          Expanded(child: Text(expense.memo ?? '-', style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis)),
+          SizedBox(width: 76, child: Text(subBudgetName ?? '-', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline), overflow: TextOverflow.ellipsis)),
+          SizedBox(width: 88, child: Text('-${context.formatCurrency(expense.amount)}', style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.error, fontWeight: FontWeight.w500), textAlign: TextAlign.right)),
         ]),
       ),
     );
@@ -547,24 +549,24 @@ class _ExpenseRow extends StatelessWidget {
 
   void _showOptionsMenu(BuildContext context) {
     final loc = context.loc;
-    showModalBottomSheet(context: context, builder: (context) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+    showModalBottomSheet(context: context, builder: (sheetContext) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
       Container(
         padding: const EdgeInsets.all(16),
         width: double.infinity,
-        child: Text('${expense.memo ?? loc.tr('expense')} - ${context.formatCurrency(expense.amount)}', style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+        child: Text('${expense.memo ?? loc.tr('expense')} - ${sheetContext.formatCurrency(expense.amount)}', style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
       ),
       const Divider(height: 1),
       // #35: 수정 기능 추가
       ListTile(leading: const Icon(Icons.edit), title: Text(loc.tr('edit')), onTap: () {
-        Navigator.pop(context);
+        Navigator.pop(sheetContext);
         _editExpense(context);
       }),
       ListTile(leading: const Icon(Icons.copy), title: Text(loc.tr('duplicate')), onTap: () {
-        Navigator.pop(context);
+        Navigator.pop(sheetContext);
         _duplicateExpense(context);
       }),
-      ListTile(leading: Icon(Icons.delete, color: Theme.of(context).colorScheme.error), title: Text(loc.tr('delete'), style: TextStyle(color: Theme.of(context).colorScheme.error)), onTap: () {
-        Navigator.pop(context);
+      ListTile(leading: Icon(Icons.delete, color: Theme.of(sheetContext).colorScheme.error), title: Text(loc.tr('delete'), style: TextStyle(color: Theme.of(sheetContext).colorScheme.error)), onTap: () {
+        Navigator.pop(sheetContext);
         _showDeleteDialog(context);
       }),
     ])));
