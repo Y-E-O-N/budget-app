@@ -176,8 +176,8 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
                         )),
                         const SizedBox(width: 8),
                         Expanded(child: Text(loc.tr('memo'), style: _headerStyle(context))),
-                        SizedBox(width: 76, child: Text(loc.tr('subBudget'), style: _headerStyle(context), overflow: TextOverflow.ellipsis)),
-                        SizedBox(width: 88, child: Text(loc.tr('amount'), style: _headerStyle(context), textAlign: TextAlign.right)),
+                        ConstrainedBox(constraints: const BoxConstraints(maxWidth: 76), child: Text(loc.tr('subBudget'), style: _headerStyle(context), overflow: TextOverflow.ellipsis)),
+                        ConstrainedBox(constraints: const BoxConstraints(maxWidth: 88), child: Text(loc.tr('amount'), style: _headerStyle(context), textAlign: TextAlign.right)),
                       ]),
                     ),
                     if (expenses.isEmpty)
@@ -540,8 +540,8 @@ class _ExpenseRow extends StatelessWidget {
           SizedBox(width: 40, child: Text(DateFormat('M/d').format(expense.date), style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.outline))),
           const SizedBox(width: 8),
           Expanded(child: Text(expense.memo ?? '-', style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis)),
-          SizedBox(width: 76, child: Text(subBudgetName ?? '-', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline), overflow: TextOverflow.ellipsis)),
-          SizedBox(width: 88, child: Text('-${context.formatCurrency(expense.amount)}', style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.error, fontWeight: FontWeight.w500), textAlign: TextAlign.right)),
+          ConstrainedBox(constraints: const BoxConstraints(maxWidth: 76), child: Text(subBudgetName ?? '-', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline), overflow: TextOverflow.ellipsis)),
+          ConstrainedBox(constraints: const BoxConstraints(maxWidth: 88), child: Text('-${context.formatCurrency(expense.amount)}', style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.error, fontWeight: FontWeight.w500), textAlign: TextAlign.right)),
         ]),
       ),
     );
