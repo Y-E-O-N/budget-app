@@ -475,6 +475,56 @@ class BudgetProvider extends ChangeNotifier {
     }
   }
 
+  /// 대상 월에서 같은 이름의 예산을 찾거나, 없으면 자동 생성
+  Future<String> findOrCreateBudgetForMonth(Budget sourceBudget, int targetYear, int targetMonth) async {
+    // 같은 이름의 예산이 대상 월에 있는지 탐색
+    final existing = _budgetBox.values.cast<Budget?>().firstWhere(
+      (b) => b!.name == sourceBudget.name && b.year == targetYear && b.month == targetMonth,
+      orElse: () => null,
+    );
+    if (existing != null) return existing.id;
+
+    // 없으면 자동 생성
+    final newBudget = Budget(
+      id: _uuid.v4(),
+      name: sourceBudget.name,
+      amount: sourceBudget.amount,
+      year: targetYear,
+      month: targetMonth,
+      isRecurring: sourceBudget.isRecurring,
+      order: sourceBudget.order,
+    );
+    await _budgetBox.put(newBudget.id, newBudget);
+    return newBudget.id;
+  }
+
+  /// 대상 월 예산 내에서 같은 이름의 세부예산을 찾거나, 없으면 자동 생성
+  Future<String?> findOrCreateSubBudgetForMonth(String? sourceSubBudgetId, String targetBudgetId, int targetYear, int targetMonth) async {
+    if (sourceSubBudgetId == null) return null;
+    final sourceSub = _subBudgetBox.get(sourceSubBudgetId);
+    if (sourceSub == null) return null;
+
+    // 대상 예산 내에서 같은 이름의 세부예산 탐색
+    final existing = _subBudgetBox.values.cast<SubBudget?>().firstWhere(
+      (s) => s!.budgetId == targetBudgetId && s.name == sourceSub.name && s.year == targetYear && s.month == targetMonth,
+      orElse: () => null,
+    );
+    if (existing != null) return existing.id;
+
+    // 없으면 자동 생성
+    final newSub = SubBudget(
+      id: _uuid.v4(),
+      budgetId: targetBudgetId,
+      name: sourceSub.name,
+      amount: sourceSub.amount,
+      year: targetYear,
+      month: targetMonth,
+      isRecurring: sourceSub.isRecurring,
+    );
+    await _subBudgetBox.put(newSub.id, newSub);
+    return newSub.id;
+  }
+
   /// 전체 지출 목록 (모든 기간)
   List<Expense> get allExpenses => _expenseBox.values.toList();
 
