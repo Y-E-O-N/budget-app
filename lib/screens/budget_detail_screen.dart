@@ -654,19 +654,33 @@ class _ExpenseRow extends StatelessWidget {
                   Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(sheetContext), child: Text(loc.tr('cancel')))),
                   const SizedBox(width: 12),
                   Expanded(child: FilledButton(
-                    onPressed: () {
+                    onPressed: () async {
                       final amount = int.tryParse(amountController.text.replaceAll(',', '')) ?? 0;
                       if (amount <= 0) {
                         setState(() => errorMessage = loc.tr('numberOnlyError'));
                         return;
                       }
+                      // 대상 월이 원본과 다르면 해당 월의 예산/세부예산을 찾거나 생성
+                      final sourceBudget = provider.getBudgetById(expense.budgetId);
+                      String targetBudgetId = expense.budgetId;
+                      String? targetSubBudgetId = expense.subBudgetId;
+                      if (sourceBudget != null &&
+                          (selectedDate.year != sourceBudget.year || selectedDate.month != sourceBudget.month)) {
+                        targetBudgetId = await provider.findOrCreateBudgetForMonth(
+                          sourceBudget, selectedDate.year, selectedDate.month,
+                        );
+                        targetSubBudgetId = await provider.findOrCreateSubBudgetForMonth(
+                          expense.subBudgetId, targetBudgetId, selectedDate.year, selectedDate.month,
+                        );
+                      }
                       provider.addExpense(
-                        expense.budgetId,
-                        expense.subBudgetId,
+                        targetBudgetId,
+                        targetSubBudgetId,
                         amount,
                         selectedDate,
                         memo: memoController.text.trim().isEmpty ? null : memoController.text.trim(),
                       );
+                      if (!context.mounted) return;
                       Navigator.pop(sheetContext);
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.tr('duplicated')), duration: const Duration(seconds: 2)));
                     },
