@@ -208,7 +208,7 @@ class _BudgetTabState extends State<BudgetTab> {
         children: [
           // 헤더 행 (#2: 정렬 기능 추가)
           Table(
-            border: TableBorder(verticalInside: border),
+            border: TableBorder(verticalInside: border, bottom: border),
             columnWidths: const {
               0: FlexColumnWidth(3),    // 예산명 너비 확장
               1: FlexColumnWidth(2),
@@ -487,7 +487,7 @@ class _BudgetRow extends StatelessWidget {
       child: Table(
         border: TableBorder(
           verticalInside: border,
-          bottom: isLast ? BorderSide.none : border,
+          bottom: border,
         ),
         columnWidths: const {
           0: FlexColumnWidth(3),    // 예산명 너비 확장 (#6)
