@@ -697,16 +697,70 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
                   ),
                 ],
                 if (hasHistory) ...[
+                  const SizedBox(height: 12),
+                  // 분석 이력 인라인 리스트
+                  Row(children: [
+                    Icon(Icons.history, size: 16, color: Theme.of(context).colorScheme.outline),
+                    const SizedBox(width: 6),
+                    Text('${loc.tr('analysisHistory')} (${analysis.history.length})', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline, fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    if (analysis.history.length > 1)
+                      GestureDetector(
+                        onTap: () => _showClearHistoryConfirm(context, analysis),
+                        child: Text(loc.tr('clearAll'), style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.error)),
+                      ),
+                  ]),
                   const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: TextButton.icon(
-                      onPressed: () => _showAnalysisHistoryDialog(context, analysis, settings.language),
-                      icon: const Icon(Icons.history, size: 16),
-                      label: Text('${loc.tr('analysisHistory')} (${analysis.history.length})', style: const TextStyle(fontSize: 12)),
-                      style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 8)),
-                    ),
-                  ),
+                  ...analysis.history.map((record) {
+                    final dateFormat = DateFormat('yyyy.MM.dd');
+                    final isSelected = analysis.currentRecord == record;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Dismissible(
+                          key: ValueKey(record.analyzedAt.toIso8601String()),
+                          direction: DismissDirection.endToStart,
+                          confirmDismiss: (_) => _confirmDeleteRecord(context, analysis, record),
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 20),
+                            color: Theme.of(context).colorScheme.error,
+                            child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onError),
+                          ),
+                          child: Material(
+                            color: isSelected
+                                ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3)
+                                : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                            child: InkWell(
+                              onTap: () => _showAnalysisResultDialogWithRecord(context, record, settings.language),
+                              onLongPress: () => _confirmDeleteRecord(context, analysis, record),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                child: Row(children: [
+                                  Expanded(child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${dateFormat.format(record.startDate)} ~ ${dateFormat.format(record.endDate)}',
+                                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: isSelected ? Theme.of(context).colorScheme.primary : null),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${loc.tr('analyzedAt')}: ${DateFormat('yyyy.MM.dd HH:mm').format(record.analyzedAt)}',
+                                        style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.outline),
+                                      ),
+                                    ],
+                                  )),
+                                  Icon(Icons.chevron_right, size: 20, color: Theme.of(context).colorScheme.outline),
+                                ]),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
                 ],
               ],
             ),
@@ -716,67 +770,39 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
     );
   }
 
-  void _showAnalysisHistoryDialog(BuildContext context, AnalysisProvider analysis, String language) {
+  void _showClearHistoryConfirm(BuildContext context, AnalysisProvider analysis) {
     final loc = context.loc;
-    final dateFormat = DateFormat('yyyy.MM.dd');
-
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Row(children: [const Icon(Icons.history), const SizedBox(width: 8), Text(loc.tr('analysisHistory'))]),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 400,
-          child: analysis.history.isEmpty
-              ? Center(child: Text(loc.tr('noAnalysisHistory')))
-              : ListView.builder(
-                  itemCount: analysis.history.length,
-                  itemBuilder: (context, index) {
-                    final record = analysis.history[index];
-                    final isSelected = analysis.currentRecord == record;
-                    return Card(
-                      color: isSelected ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3) : null,
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surfaceContainerHighest,
-                          foregroundColor: isSelected ? Theme.of(context).colorScheme.onPrimary : null,
-                          child: Text('${index + 1}', style: const TextStyle(fontSize: 12)),
-                        ),
-                        title: Text('${dateFormat.format(record.startDate)} ~ ${dateFormat.format(record.endDate)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                        subtitle: Text('${loc.tr('analyzedAt')}: ${DateFormat('MM.dd HH:mm').format(record.analyzedAt)}', style: const TextStyle(fontSize: 12)),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(icon: const Icon(Icons.visibility, size: 20), tooltip: loc.tr('viewResult'), onPressed: () { Navigator.pop(dialogContext); _showAnalysisResultDialogWithRecord(context, record, language); }),
-                            IconButton(icon: Icon(Icons.delete_outline, size: 20, color: Theme.of(context).colorScheme.error), tooltip: loc.tr('delete'), onPressed: () async { await analysis.deleteRecord(record); if (dialogContext.mounted && analysis.history.isEmpty) Navigator.pop(dialogContext); }),
-                          ],
-                        ),
-                        onTap: () { Navigator.pop(dialogContext); _showAnalysisResultDialogWithRecord(context, record, language); },
-                      ),
-                    );
-                  },
-                ),
-        ),
+      builder: (ctx) => AlertDialog(
+        title: Text(loc.tr('confirm')),
+        content: Text(loc.tr('clearHistoryConfirm')),
         actions: [
-          if (analysis.history.isNotEmpty)
-            TextButton(
-              onPressed: () async {
-                final confirmed = await showDialog<bool>(context: dialogContext, builder: (ctx) => AlertDialog(
-                  title: Text(loc.tr('confirm')),
-                  content: Text(loc.tr('clearHistoryConfirm')),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(loc.tr('cancel'))),
-                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(loc.tr('delete'), style: TextStyle(color: Theme.of(context).colorScheme.error))),
-                  ],
-                ));
-                if (confirmed == true) { await analysis.clearHistory(); if (dialogContext.mounted) Navigator.pop(dialogContext); }
-              },
-              child: Text(loc.tr('clearAll'), style: TextStyle(color: Theme.of(context).colorScheme.error)),
-            ),
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(loc.tr('close'))),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(loc.tr('cancel'))),
+          TextButton(onPressed: () async { await analysis.clearHistory(); if (ctx.mounted) Navigator.pop(ctx); }, child: Text(loc.tr('delete'), style: TextStyle(color: Theme.of(context).colorScheme.error))),
         ],
       ),
     );
+  }
+
+  Future<bool> _confirmDeleteRecord(BuildContext context, AnalysisProvider analysis, AnalysisRecord record) async {
+    final loc = context.loc;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(loc.tr('deleteConfirm')),
+        content: Text('${DateFormat('yyyy.MM.dd').format(record.startDate)} ~ ${DateFormat('yyyy.MM.dd').format(record.endDate)}'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(loc.tr('cancel'))),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(loc.tr('delete'), style: TextStyle(color: Theme.of(context).colorScheme.error))),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await analysis.deleteRecord(record);
+      return true;
+    }
+    return false;
   }
 
   void _showAiAnalysisDialog(BuildContext context, BudgetProvider provider, SettingsProvider settings, AnalysisProvider analysis) {
