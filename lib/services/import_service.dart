@@ -1,6 +1,7 @@
 // =============================================================================
 // import_service.dart - 엑셀 불러오기 서비스
 // =============================================================================
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:excel/excel.dart';
 import 'package:file_picker/file_picker.dart';
@@ -14,6 +15,8 @@ import '../constants/error_messages.dart';
 class ImportSecurityConstants {
   // 파일 크기 제한 (10MB)
   static const int maxFileSizeBytes = 10 * 1024 * 1024;
+  // 시트당 최대 행 수
+  static const int maxRowsPerSheet = 10000;
   // 이름 최대 길이
   static const int maxNameLength = 100;
   // 금액 최대값 (100억)
@@ -319,7 +322,8 @@ class ImportService {
 
   // 예산 시트 파싱
   void _parseBudgetSheet(Sheet sheet, List<ImportedBudget> budgets) {
-    for (var i = 1; i < sheet.maxRows; i++) {
+    final maxRows = min(sheet.maxRows, ImportSecurityConstants.maxRowsPerSheet);
+    for (var i = 1; i < maxRows; i++) {
       final row = sheet.row(i);
       if (row.isEmpty) continue;
 
@@ -362,7 +366,8 @@ class ImportService {
 
   // 세부예산 시트 파싱
   void _parseSubBudgetSheet(Sheet sheet, List<ImportedSubBudget> subBudgets) {
-    for (var i = 1; i < sheet.maxRows; i++) {
+    final maxRows = min(sheet.maxRows, ImportSecurityConstants.maxRowsPerSheet);
+    for (var i = 1; i < maxRows; i++) {
       final row = sheet.row(i);
       if (row.length < 3) continue;
 
@@ -395,7 +400,8 @@ class ImportService {
     List<ImportedBudget> budgets,
     List<ImportedSubBudget> subBudgets,
   ) {
-    for (var i = 1; i < sheet.maxRows; i++) {
+    final maxRows = min(sheet.maxRows, ImportSecurityConstants.maxRowsPerSheet);
+    for (var i = 1; i < maxRows; i++) {
       final row = sheet.row(i);
       if (row.length < 5) continue;
 
