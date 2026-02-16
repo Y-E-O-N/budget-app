@@ -9,42 +9,7 @@ import '../app_localizations.dart';
 import '../providers/budget_provider.dart';
 import '../providers/settings_provider.dart';
 import '../models/expense.dart';
-
-// 천 단위 포맷터
-class ThousandsSeparatorInputFormatter extends TextInputFormatter {
-  final NumberFormat _formatter = NumberFormat('#,###', 'ko_KR');
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    if (newValue.text.isEmpty) return newValue;
-    final numericString = newValue.text.replaceAll(',', '');
-    if (numericString.isEmpty || int.tryParse(numericString) == null) return oldValue;
-    final formatted = _formatter.format(int.parse(numericString));
-    return TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
-  }
-}
-
-// =============================================================================
-// 스프레드시트 스타일 상수
-// =============================================================================
-class _SheetStyle {
-  static const double borderWidth = 1.0;
-  static const double cellPaddingH = 8.0;
-  static const double cellPaddingV = 10.0;
-  static const double fontSize = 13.0;
-  static const double headerFontSize = 12.0;
-
-  static Color borderColor(BuildContext context) =>
-    Theme.of(context).dividerColor.withValues(alpha: 0.5);
-
-  static Color headerBg(BuildContext context) =>
-    Theme.of(context).colorScheme.surfaceContainerHighest;
-
-  static Color evenRowBg(BuildContext context) =>
-    Theme.of(context).colorScheme.surface;
-
-  static Color oddRowBg(BuildContext context) =>
-    Theme.of(context).colorScheme.surfaceContainerLowest;
-}
+import '../widgets/shared_styles.dart';
 
 // 정렬 옵션
 enum SortOption { dateDesc, dateAsc, amountDesc, amountAsc }
@@ -68,6 +33,15 @@ class _HistoryTabState extends State<HistoryTab> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  int _getActiveFilterCount() {
+    int count = 0;
+    if (_startDate != null) count++;
+    if (_endDate != null) count++;
+    if (_searchQuery.isNotEmpty) count++;
+    if (_sortOption != SortOption.dateDesc) count++;
+    return count;
   }
 
   void _resetFilters() {
@@ -140,7 +114,30 @@ class _HistoryTabState extends State<HistoryTab> {
             title: Text(loc.tr('historyTab')),
             actions: [
               IconButton(
-                icon: Icon(_isFilterExpanded ? Icons.filter_list_off : Icons.filter_list),
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(_isFilterExpanded ? Icons.filter_list_off : Icons.filter_list),
+                    if (_getActiveFilterCount() > 0)
+                      Positioned(
+                        right: -6,
+                        top: -6,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                          child: Text(
+                            '${_getActiveFilterCount()}',
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
                 tooltip: loc.tr('filter'),
                 onPressed: () => setState(() => _isFilterExpanded = !_isFilterExpanded),
               ),
@@ -180,7 +177,7 @@ class _HistoryTabState extends State<HistoryTab> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
-                  border: Border.all(color: _SheetStyle.borderColor(context)),
+                  border: Border.all(color: SheetStyle.borderColor(context)),
                 ),
                 child: Row(
                   children: [
@@ -200,7 +197,7 @@ class _HistoryTabState extends State<HistoryTab> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          border: Border.all(color: _SheetStyle.borderColor(context)),
+                          border: Border.all(color: SheetStyle.borderColor(context)),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -234,13 +231,13 @@ class _HistoryTabState extends State<HistoryTab> {
 
   // 테이블 헤더
   Widget _buildTableHeader(BuildContext context, AppLocalizations loc) {
-    final border = BorderSide(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth);
+    final border = BorderSide(color: SheetStyle.borderColor(context), width: SheetStyle.borderWidth);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         border: Border(left: border, right: border, bottom: border),
-        color: _SheetStyle.headerBg(context),
+        color: SheetStyle.headerBg(context),
       ),
       child: Table(
         border: TableBorder(verticalInside: border),
@@ -266,11 +263,11 @@ class _HistoryTabState extends State<HistoryTab> {
 
   Widget _buildHeaderCell(String text, BuildContext context, {TextAlign align = TextAlign.left}) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: _SheetStyle.cellPaddingH, vertical: _SheetStyle.cellPaddingV),
+      padding: EdgeInsets.symmetric(horizontal: SheetStyle.cellPaddingH, vertical: SheetStyle.cellPaddingV),
       child: Text(
         text,
         style: TextStyle(
-          fontSize: _SheetStyle.headerFontSize,
+          fontSize: SheetStyle.headerFontSize,
           fontWeight: FontWeight.w600,
           color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
@@ -281,7 +278,7 @@ class _HistoryTabState extends State<HistoryTab> {
 
   // 데이터 테이블
   Widget _buildDataTable(BuildContext context, List<Expense> expenses, BudgetProvider provider, AppLocalizations loc) {
-    final border = BorderSide(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth);
+    final border = BorderSide(color: SheetStyle.borderColor(context), width: SheetStyle.borderWidth);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(8, 0, 8, 8),
@@ -313,8 +310,8 @@ class _HistoryTabState extends State<HistoryTab> {
       margin: const EdgeInsets.fromLTRB(8, 8, 8, 0),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: _SheetStyle.headerBg(context),
-        border: Border.all(color: _SheetStyle.borderColor(context)),
+        color: SheetStyle.headerBg(context),
+        border: Border.all(color: SheetStyle.borderColor(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -449,7 +446,8 @@ class _HistoryTabState extends State<HistoryTab> {
   }
 
   void _showEditExpenseDialog(BuildContext context, Expense expense, BudgetProvider provider, AppLocalizations loc) {
-    final amountController = TextEditingController(text: NumberFormat('#,###').format(expense.amount));
+    final settings = context.read<SettingsProvider>();
+    final amountController = TextEditingController(text: NumberFormat('#,###', AppLocalizations.localeFor(settings.language)).format(expense.amount));
     final memoController = TextEditingController(text: expense.memo ?? '');
     DateTime selectedDate = expense.date;
     String? selectedSubBudgetId = expense.subBudgetId;
@@ -561,7 +559,7 @@ class _ExpenseRow extends StatelessWidget {
     final budget = provider.getBudgetById(expense.budgetId);
     final subBudget = expense.subBudgetId != null ? provider.getSubBudgetById(expense.subBudgetId!) : null;
     final dateFormat = DateFormat('MM/dd');
-    final border = BorderSide(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth);
+    final border = BorderSide(color: SheetStyle.borderColor(context), width: SheetStyle.borderWidth);
 
     // 카테고리 표시: 예산명 또는 예산명 > 세부예산명
     String category = budget?.name ?? '-';
@@ -585,7 +583,7 @@ class _ExpenseRow extends StatelessWidget {
         children: [
           TableRow(
             decoration: BoxDecoration(
-              color: isEven ? _SheetStyle.evenRowBg(context) : _SheetStyle.oddRowBg(context),
+              color: isEven ? SheetStyle.evenRowBg(context) : SheetStyle.oddRowBg(context),
             ),
             children: [
               // 날짜 - #21: 중앙 정렬
@@ -595,12 +593,28 @@ class _ExpenseRow extends StatelessWidget {
               // 메모
               _buildCell(expense.memo ?? '-', context, maxLines: 1),
               // 금액
-              _buildCell(
-                context.formatCurrency(expense.amount),
-                context,
-                align: TextAlign.right,
-                textColor: Theme.of(context).colorScheme.primary,
-                bold: true,
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: SheetStyle.cellPaddingH,
+                  vertical: SheetStyle.cellPaddingV,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        context.formatCurrency(expense.amount),
+                        style: TextStyle(
+                          fontSize: SheetStyle.fontSize,
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.right,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Icon(Icons.more_vert, size: 16, color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3)),
+                  ],
+                ),
               ),
             ],
           ),
@@ -617,13 +631,13 @@ class _ExpenseRow extends StatelessWidget {
   }) {
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: _SheetStyle.cellPaddingH,
-        vertical: _SheetStyle.cellPaddingV,
+        horizontal: SheetStyle.cellPaddingH,
+        vertical: SheetStyle.cellPaddingV,
       ),
       child: Text(
         text,
         style: TextStyle(
-          fontSize: _SheetStyle.fontSize,
+          fontSize: SheetStyle.fontSize,
           color: textColor,
           fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
         ),
