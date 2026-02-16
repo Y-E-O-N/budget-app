@@ -137,6 +137,11 @@ class AiAnalysisService {
   static const String _deviceIdKey = 'ai_device_id';
   static const String _settingsBoxName = 'settings';
 
+  // getUsage() 캐시 (static: 인스턴스 재생성에도 유지)
+  static UsageInfo? _cachedUsage;
+  static DateTime? _lastUsageFetch;
+  static const _usageCacheDuration = Duration(seconds: 60);
+
   // 보안 저장소 (Device ID 저장용)
   static const _secureStorage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
@@ -174,8 +179,16 @@ class AiAnalysisService {
     return deviceId;
   }
 
-  /// 현재 사용량 조회
-  Future<Result<UsageInfo>> getUsage() async {
+  /// 현재 사용량 조회 (60초 캐시)
+  Future<Result<UsageInfo>> getUsage({bool forceRefresh = false}) async {
+    // 캐시가 유효하면 즉시 반환
+    if (!forceRefresh &&
+        _cachedUsage != null &&
+        _lastUsageFetch != null &&
+        DateTime.now().difference(_lastUsageFetch!) < _usageCacheDuration) {
+      return Result.success(_cachedUsage!);
+    }
+
     try {
       final deviceId = await getDeviceId();
       final url = Uri.parse('${AppConstants.apiBaseUrl}/api/usage/$deviceId');
@@ -183,12 +196,21 @@ class AiAnalysisService {
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
-        return Result.success(UsageInfo.fromJson(json));
+        final usage = UsageInfo.fromJson(json);
+        _cachedUsage = usage;
+        _lastUsageFetch = DateTime.now();
+        return Result.success(usage);
       }
       return Result.failure(AppException.api(details: 'Failed to get usage info'));
     } catch (e) {
       return Result.failure(AppException.network(originalError: e));
     }
+  }
+
+  /// 분석 완료 후 캐시 무효화 (사용량 변동 반영)
+  static void invalidateUsageCache() {
+    _cachedUsage = null;
+    _lastUsageFetch = null;
   }
 
   // ==========================================================================
@@ -219,15 +241,22 @@ class AiAnalysisService {
 
       // 성공
       if (response.statusCode == 200) {
+        invalidateUsageCache(); // 사용량 변동 반영
         final jsonResponse = jsonDecode(response.body);
         return Result.success(AiAnalysisResponse.fromJson(jsonResponse));
       }
 
       // #17: 429 Rate Limit 에러 처리
       if (response.statusCode == 429) {
-        final errorBody = jsonDecode(response.body);
-        final errorMessage = errorBody['detail'] ?? ErrorMessages.get('rateLimitExceeded', language);
-        return Result.failure(AppException.rateLimit(details: errorMessage));
+        try {
+          final errorBody = jsonDecode(response.body);
+          final errorMessage = errorBody['detail'] ?? ErrorMessages.get('rateLimitExceeded', language);
+          return Result.failure(AppException.rateLimit(details: errorMessage));
+        } catch (_) {
+          return Result.failure(AppException.rateLimit(
+            details: ErrorMessages.get('rateLimitExceeded', language),
+          ));
+        }
       }
 
       // API 에러
