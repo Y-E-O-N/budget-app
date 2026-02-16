@@ -11,29 +11,7 @@ import '../services/ai_analysis_service.dart';
 import '../constants/app_constants.dart';
 import '../utils/format_utils.dart';
 import 'analysis_result_screen.dart';  // #26: 분석 결과 전용 화면
-
-// =============================================================================
-// 스프레드시트 스타일 상수
-// =============================================================================
-class _SheetStyle {
-  static const double borderWidth = 1.0;
-  static const double cellPaddingH = 8.0;
-  static const double cellPaddingV = 10.0;
-  static const double fontSize = 13.0;
-  static const double headerFontSize = 12.0;
-
-  static Color borderColor(BuildContext context) =>
-    Theme.of(context).dividerColor.withValues(alpha: 0.5);
-
-  static Color headerBg(BuildContext context) =>
-    Theme.of(context).colorScheme.surfaceContainerHighest;
-
-  static Color evenRowBg(BuildContext context) =>
-    Theme.of(context).colorScheme.surface;
-
-  static Color oddRowBg(BuildContext context) =>
-    Theme.of(context).colorScheme.surfaceContainerLowest;
-}
+import '../widgets/shared_styles.dart';
 
 class StatsTab extends StatefulWidget {
   const StatsTab({super.key});
@@ -151,11 +129,11 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
   Widget _buildBudgetAllocationTable(BuildContext context, List budgets, BudgetProvider provider) {
     final loc = context.loc;
     final totalBudget = provider.totalBudget;
-    final border = BorderSide(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth);
+    final border = BorderSide(color: SheetStyle.borderColor(context), width: SheetStyle.borderWidth);
 
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth),
+        border: Border.all(color: SheetStyle.borderColor(context), width: SheetStyle.borderWidth),
       ),
       child: Column(
         children: [
@@ -169,7 +147,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
             },
             children: [
               TableRow(
-                decoration: BoxDecoration(color: _SheetStyle.headerBg(context)),
+                decoration: BoxDecoration(color: SheetStyle.headerBg(context)),
                 children: [
                   _buildCell(loc.tr('budgetName'), context, isHeader: true, align: TextAlign.center),  // #19: 중앙 정렬
                   _buildCell(loc.tr('budget'), context, isHeader: true, align: TextAlign.center),  // #19: 중앙 정렬
@@ -192,7 +170,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
               },
               children: [
                 TableRow(
-                  decoration: BoxDecoration(color: index % 2 == 0 ? _SheetStyle.evenRowBg(context) : _SheetStyle.oddRowBg(context)),
+                  decoration: BoxDecoration(color: index % 2 == 0 ? SheetStyle.evenRowBg(context) : SheetStyle.oddRowBg(context)),
                   children: [
                     _buildCell(budget.name, context),
                     _buildCell(context.formatCurrency(budget.amount), context, align: TextAlign.right),
@@ -212,7 +190,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
             },
             children: [
               TableRow(
-                decoration: BoxDecoration(color: _SheetStyle.headerBg(context)),
+                decoration: BoxDecoration(color: SheetStyle.headerBg(context)),
                 children: [
                   _buildCell(loc.tr('total'), context, isHeader: true, align: TextAlign.center),  // #19: 중앙 정렬
                   _buildCell(context.formatCurrency(totalBudget), context, isHeader: true, align: TextAlign.right),
@@ -229,7 +207,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
   // 실제 사용 테이블
   Widget _buildActualUsageTable(BuildContext context, List budgets, BudgetProvider provider) {
     final loc = context.loc;
-    final border = BorderSide(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth);
+    final border = BorderSide(color: SheetStyle.borderColor(context), width: SheetStyle.borderWidth);
 
     int totalBudget = 0;
     int totalExpense = 0;
@@ -240,7 +218,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
 
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth),
+        border: Border.all(color: SheetStyle.borderColor(context), width: SheetStyle.borderWidth),
       ),
       child: Column(
         children: [
@@ -255,7 +233,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
             },
             children: [
               TableRow(
-                decoration: BoxDecoration(color: _SheetStyle.headerBg(context)),
+                decoration: BoxDecoration(color: SheetStyle.headerBg(context)),
                 children: [
                   _buildCell(loc.tr('budgetName'), context, isHeader: true, align: TextAlign.center),
                   _buildCell(loc.tr('used'), context, isHeader: true, align: TextAlign.center),
@@ -284,7 +262,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
               },
               children: [
                 TableRow(
-                  decoration: BoxDecoration(color: index % 2 == 0 ? _SheetStyle.evenRowBg(context) : _SheetStyle.oddRowBg(context)),
+                  decoration: BoxDecoration(color: index % 2 == 0 ? SheetStyle.evenRowBg(context) : SheetStyle.oddRowBg(context)),
                   children: [
                     _buildCell(budget.name, context),
                     _buildCell(context.formatCurrency(expense), context, align: TextAlign.right),
@@ -317,7 +295,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
             },
             children: [
               TableRow(
-                decoration: BoxDecoration(color: _SheetStyle.headerBg(context)),
+                decoration: BoxDecoration(color: SheetStyle.headerBg(context)),
                 children: [
                   _buildCell(loc.tr('total'), context, isHeader: true, align: TextAlign.center),
                   _buildCell(context.formatCurrency(totalExpense), context, isHeader: true, align: TextAlign.right),
@@ -350,11 +328,11 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
     bool bold = false,
   }) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: _SheetStyle.cellPaddingH, vertical: _SheetStyle.cellPaddingV),
+      padding: EdgeInsets.symmetric(horizontal: SheetStyle.cellPaddingH, vertical: SheetStyle.cellPaddingV),
       child: Text(
         text,
         style: TextStyle(
-          fontSize: isHeader ? _SheetStyle.headerFontSize : _SheetStyle.fontSize,
+          fontSize: isHeader ? SheetStyle.headerFontSize : SheetStyle.fontSize,
           fontWeight: isHeader || bold ? FontWeight.w600 : FontWeight.normal,
           color: textColor ?? (isHeader ? Theme.of(context).colorScheme.onSurfaceVariant : Theme.of(context).colorScheme.onSurface),
         ),
@@ -399,11 +377,11 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
     final currentExpense = momData.currentExpense;
     final prevExpense = momData.previousExpense;
     final diff = currentExpense - prevExpense;
-    final border = BorderSide(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth);
+    final border = BorderSide(color: SheetStyle.borderColor(context), width: SheetStyle.borderWidth);
 
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth),
+        border: Border.all(color: SheetStyle.borderColor(context), width: SheetStyle.borderWidth),
       ),
       child: Table(
         border: TableBorder(verticalInside: border, horizontalInside: border),
@@ -416,7 +394,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
         children: [
           // 헤더
           TableRow(
-            decoration: BoxDecoration(color: _SheetStyle.headerBg(context)),
+            decoration: BoxDecoration(color: SheetStyle.headerBg(context)),
             children: [
               _buildCell(loc.tr('lastMonth'), context, isHeader: true, align: TextAlign.center),
               _buildCell(loc.tr('thisMonth'), context, isHeader: true, align: TextAlign.center),
@@ -426,7 +404,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
           ),
           // 데이터
           TableRow(
-            decoration: BoxDecoration(color: _SheetStyle.evenRowBg(context)),
+            decoration: BoxDecoration(color: SheetStyle.evenRowBg(context)),
             children: [
               _buildCell(context.formatCurrency(prevExpense), context, align: TextAlign.center),
               _buildCell(context.formatCurrency(currentExpense), context, align: TextAlign.center),
@@ -458,16 +436,16 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
     if (trendData.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(border: Border.all(color: _SheetStyle.borderColor(context))),
+        decoration: BoxDecoration(border: Border.all(color: SheetStyle.borderColor(context))),
         child: Center(child: Text(loc.tr('noExpense'))),
       );
     }
 
-    final border = BorderSide(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth);
+    final border = BorderSide(color: SheetStyle.borderColor(context), width: SheetStyle.borderWidth);
 
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth),
+        border: Border.all(color: SheetStyle.borderColor(context), width: SheetStyle.borderWidth),
       ),
       child: Column(
         children: [
@@ -476,7 +454,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
             border: TableBorder(verticalInside: border),
             children: [
               TableRow(
-                decoration: BoxDecoration(color: _SheetStyle.headerBg(context)),
+                decoration: BoxDecoration(color: SheetStyle.headerBg(context)),
                 children: trendData.map((d) =>
                   _buildCell(FormatUtils.formatMonth(d.month), context, isHeader: true, align: TextAlign.center)
                 ).toList(),
@@ -488,7 +466,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
             border: TableBorder(verticalInside: border, top: border),
             children: [
               TableRow(
-                decoration: BoxDecoration(color: _SheetStyle.evenRowBg(context)),
+                decoration: BoxDecoration(color: SheetStyle.evenRowBg(context)),
                 children: trendData.map((d) =>
                   _buildCell(d.expense > 0 ? FormatUtils.formatAmountShort(d.expense) : '-', context, align: TextAlign.center)  // 데이터 없으면 '-' 표시
                 ).toList(),
@@ -512,7 +490,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
       height: 200,
       padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
       decoration: BoxDecoration(
-        border: Border.all(color: _SheetStyle.borderColor(context)),
+        border: Border.all(color: SheetStyle.borderColor(context)),
       ),
       child: LineChart(
         LineChartData(
@@ -520,7 +498,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
             show: true,
             drawVerticalLine: false,
             horizontalInterval: maxY / 4,
-            getDrawingHorizontalLine: (value) => FlLine(color: _SheetStyle.borderColor(context), strokeWidth: 1),
+            getDrawingHorizontalLine: (value) => FlLine(color: SheetStyle.borderColor(context), strokeWidth: 1),
           ),
           titlesData: FlTitlesData(
             leftTitles: AxisTitles(
@@ -657,18 +635,18 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
     final isRunning = analysis.isRunning;
     final hasRecord = analysis.currentRecord != null;
     final hasHistory = analysis.history.isNotEmpty;
-    final border = BorderSide(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth);
+    final border = BorderSide(color: SheetStyle.borderColor(context), width: SheetStyle.borderWidth);
 
     return Container(
-      decoration: BoxDecoration(border: Border.all(color: _SheetStyle.borderColor(context))),
+      decoration: BoxDecoration(border: Border.all(color: SheetStyle.borderColor(context))),
       child: Column(
         children: [
           // 헤더
           Container(
             width: double.infinity,
-            padding: EdgeInsets.symmetric(horizontal: _SheetStyle.cellPaddingH, vertical: _SheetStyle.cellPaddingV),
-            decoration: BoxDecoration(color: _SheetStyle.headerBg(context), border: Border(bottom: border)),
-            child: Text(loc.tr('aiAnalysis'), style: TextStyle(fontSize: _SheetStyle.headerFontSize, fontWeight: FontWeight.w600)),
+            padding: EdgeInsets.symmetric(horizontal: SheetStyle.cellPaddingH, vertical: SheetStyle.cellPaddingV),
+            decoration: BoxDecoration(color: SheetStyle.headerBg(context), border: Border(bottom: border)),
+            child: Text(loc.tr('aiAnalysis'), style: TextStyle(fontSize: SheetStyle.headerFontSize, fontWeight: FontWeight.w600)),
           ),
           // 버튼들
           Container(
@@ -852,7 +830,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(border: Border.all(color: _SheetStyle.borderColor(dialogContext))),
+                decoration: BoxDecoration(border: Border.all(color: SheetStyle.borderColor(dialogContext))),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     isExpanded: true,
@@ -888,7 +866,7 @@ class _StatsTabState extends State<StatsTab> with SingleTickerProviderStateMixin
     final service = AiAnalysisService(language: settings.language);
 
     // 사용량 조회
-    final usageResult = await service.getUsage();
+    final usageResult = await service.getUsage(forceRefresh: true);
 
     if (!context.mounted) return;
 
