@@ -7,29 +7,7 @@ import '../services/export_service.dart';
 import '../services/import_service.dart';
 import 'recurring_expense_screen.dart';
 import 'widget_settings_screen.dart';
-
-// =============================================================================
-// 스프레드시트 스타일 상수
-// =============================================================================
-class _SheetStyle {
-  static const double borderWidth = 1.0;
-  static const double cellPaddingH = 12.0;
-  static const double cellPaddingV = 14.0;
-  static const double fontSize = 13.0;
-  static const double headerFontSize = 12.0;
-
-  static Color borderColor(BuildContext context) =>
-    Theme.of(context).dividerColor.withValues(alpha: 0.5);
-
-  static Color headerBg(BuildContext context) =>
-    Theme.of(context).colorScheme.surfaceContainerHighest;
-
-  static Color evenRowBg(BuildContext context) =>
-    Theme.of(context).colorScheme.surface;
-
-  static Color oddRowBg(BuildContext context) =>
-    Theme.of(context).colorScheme.surfaceContainerLowest;
-}
+import '../widgets/shared_styles.dart';
 
 class SettingsTab extends StatelessWidget {
   const SettingsTab({super.key});
@@ -119,23 +97,23 @@ class SettingsTab extends StatelessWidget {
     required String title,
     required List<_SettingRowData> rows,
   }) {
-    final border = BorderSide(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth);
+    final border = BorderSide(color: SheetStyle.borderColor(context), width: SheetStyle.borderWidth);
 
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth),
+        border: Border.all(color: SheetStyle.borderColor(context), width: SheetStyle.borderWidth),
       ),
       child: Column(
         children: [
           // 섹션 헤더
           Container(
             width: double.infinity,
-            padding: EdgeInsets.symmetric(horizontal: _SheetStyle.cellPaddingH, vertical: _SheetStyle.cellPaddingV),
-            decoration: BoxDecoration(color: _SheetStyle.headerBg(context)),
+            padding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 14.0),
+            decoration: BoxDecoration(color: SheetStyle.headerBg(context)),
             child: Text(
               title,
               style: TextStyle(
-                fontSize: _SheetStyle.headerFontSize,
+                fontSize: SheetStyle.headerFontSize,
                 fontWeight: FontWeight.w600,
                 color: Theme.of(context).colorScheme.primary,
               ),
@@ -149,7 +127,7 @@ class SettingsTab extends StatelessWidget {
               onTap: row.onTap,
               child: Container(
                 decoration: BoxDecoration(
-                  color: index % 2 == 0 ? _SheetStyle.evenRowBg(context) : _SheetStyle.oddRowBg(context),
+                  color: index % 2 == 0 ? SheetStyle.evenRowBg(context) : SheetStyle.oddRowBg(context),
                   border: Border(top: border),
                 ),
                 child: Row(
@@ -157,31 +135,31 @@ class SettingsTab extends StatelessWidget {
                     // 아이콘
                     Container(
                       width: 48,
-                      padding: EdgeInsets.symmetric(vertical: _SheetStyle.cellPaddingV),
+                      padding: EdgeInsets.symmetric(vertical: 14.0),
                       child: Icon(row.icon, size: 20, color: Theme.of(context).colorScheme.outline),
                     ),
-                    Container(width: 1, height: 44, color: _SheetStyle.borderColor(context)),
+                    Container(width: 1, height: 44, color: SheetStyle.borderColor(context)),
                     // 설정명
                     Expanded(
                       flex: 2,
                       child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: _SheetStyle.cellPaddingH, vertical: _SheetStyle.cellPaddingV),
-                        child: Text(row.label, style: TextStyle(fontSize: _SheetStyle.fontSize)),
+                        padding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 14.0),
+                        child: Text(row.label, style: TextStyle(fontSize: SheetStyle.fontSize)),
                       ),
                     ),
-                    Container(width: 1, height: 44, color: _SheetStyle.borderColor(context)),
+                    Container(width: 1, height: 44, color: SheetStyle.borderColor(context)),
                     // 현재 값
                     Expanded(
                       flex: 2,
                       child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: _SheetStyle.cellPaddingH, vertical: _SheetStyle.cellPaddingV),
+                        padding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 14.0),
                         child: Row(
                           children: [
                             if (row.leading != null) ...[row.leading!, const SizedBox(width: 8)],
                             Expanded(
                               child: Text(
                                 row.value,
-                                style: TextStyle(fontSize: _SheetStyle.fontSize, color: Theme.of(context).colorScheme.primary),
+                                style: TextStyle(fontSize: SheetStyle.fontSize, color: Theme.of(context).colorScheme.primary),
                                 textAlign: TextAlign.right,
                               ),
                             ),
@@ -413,6 +391,7 @@ class SettingsTab extends StatelessWidget {
   // =========================================================================
 
   void _showCurrencyDialog(BuildContext context, SettingsProvider settings, List<Map<String, String>> currencies, AppLocalizations loc) {
+    final parentContext = context;
     showDialog(
       context: context,
       builder: (context) => SimpleDialog(
@@ -421,13 +400,14 @@ class SettingsTab extends StatelessWidget {
           title: Text(c['name']!),
           value: c['symbol']!,
           groupValue: settings.currency,
-          onChanged: (value) { if (value != null) { settings.setCurrency(value); Navigator.pop(context); } },
+          onChanged: (value) { if (value != null) { settings.setCurrency(value); Navigator.pop(context); ScaffoldMessenger.of(parentContext).showSnackBar(SnackBar(content: Text(loc.tr('saved')), duration: const Duration(milliseconds: 1500))); } },
         )).toList(),
       ),
     );
   }
 
   void _showStartDayDialog(BuildContext context, SettingsProvider settings, Map<String, String> days, AppLocalizations loc) {
+    final parentContext = context;
     showDialog(
       context: context,
       builder: (context) => SimpleDialog(
@@ -436,13 +416,14 @@ class SettingsTab extends StatelessWidget {
           title: Text(e.value),
           value: e.key,
           groupValue: settings.startDayOfWeek,
-          onChanged: (value) { if (value != null) { settings.setStartDayOfWeek(value); Navigator.pop(context); } },
+          onChanged: (value) { if (value != null) { settings.setStartDayOfWeek(value); Navigator.pop(context); ScaffoldMessenger.of(parentContext).showSnackBar(SnackBar(content: Text(loc.tr('saved')), duration: const Duration(milliseconds: 1500))); } },
         )).toList(),
       ),
     );
   }
 
   void _showMonthStartDayDialog(BuildContext context, SettingsProvider settings, AppLocalizations loc) {
+    final parentContext = context;
     int selectedDay = settings.monthStartDay;
     showDialog(
       context: context,
@@ -456,7 +437,7 @@ class SettingsTab extends StatelessWidget {
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(border: Border.all(color: _SheetStyle.borderColor(context))),
+                decoration: BoxDecoration(border: Border.all(color: SheetStyle.borderColor(context))),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<int>(
                     value: selectedDay,
@@ -470,7 +451,7 @@ class SettingsTab extends StatelessWidget {
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: Text(loc.tr('cancel'))),
-            FilledButton(onPressed: () { settings.setMonthStartDay(selectedDay); Navigator.pop(context); }, child: Text(loc.tr('confirm'))),
+            FilledButton(onPressed: () { settings.setMonthStartDay(selectedDay); Navigator.pop(context); ScaffoldMessenger.of(parentContext).showSnackBar(SnackBar(content: Text(loc.tr('saved')), duration: const Duration(milliseconds: 1500))); }, child: Text(loc.tr('confirm'))),
           ],
         ),
       ),
@@ -478,6 +459,7 @@ class SettingsTab extends StatelessWidget {
   }
 
   void _showLanguageDialog(BuildContext context, SettingsProvider settings, Map<String, String> languages, AppLocalizations loc) {
+    final parentContext = context;
     showDialog(
       context: context,
       builder: (context) => SimpleDialog(
@@ -486,7 +468,7 @@ class SettingsTab extends StatelessWidget {
           title: Text(e.value),
           value: e.key,
           groupValue: settings.language,
-          onChanged: (value) { if (value != null) { settings.setLanguage(value); Navigator.pop(context); } },
+          onChanged: (value) { if (value != null) { settings.setLanguage(value); Navigator.pop(context); ScaffoldMessenger.of(parentContext).showSnackBar(SnackBar(content: Text(loc.tr('saved')), duration: const Duration(milliseconds: 1500))); } },
         )).toList(),
       ),
     );
@@ -521,6 +503,7 @@ class SettingsTab extends StatelessWidget {
   }
 
   void _showThemeModeDialog(BuildContext context, SettingsProvider settings, Map<String, String> modes, AppLocalizations loc) {
+    final parentContext = context;
     showDialog(
       context: context,
       builder: (context) => SimpleDialog(
@@ -529,13 +512,14 @@ class SettingsTab extends StatelessWidget {
           title: Text(e.value),
           value: e.key,
           groupValue: settings.themeModeSetting,
-          onChanged: (value) { if (value != null) { settings.setThemeMode(value); Navigator.pop(context); } },
+          onChanged: (value) { if (value != null) { settings.setThemeMode(value); Navigator.pop(context); ScaffoldMessenger.of(parentContext).showSnackBar(SnackBar(content: Text(loc.tr('saved')), duration: const Duration(milliseconds: 1500))); } },
         )).toList(),
       ),
     );
   }
 
   void _showFontSizeDialog(BuildContext context, SettingsProvider settings, Map<double, String> sizes, AppLocalizations loc) {
+    final parentContext = context;
     showDialog(
       context: context,
       builder: (context) => SimpleDialog(
@@ -544,13 +528,14 @@ class SettingsTab extends StatelessWidget {
           title: Text(e.value),
           value: e.key,
           groupValue: settings.fontSizeScale,
-          onChanged: (value) { if (value != null) { settings.setFontSizeScale(value); Navigator.pop(context); } },
+          onChanged: (value) { if (value != null) { settings.setFontSizeScale(value); Navigator.pop(context); ScaffoldMessenger.of(parentContext).showSnackBar(SnackBar(content: Text(loc.tr('saved')), duration: const Duration(milliseconds: 1500))); } },
         )).toList(),
       ),
     );
   }
 
   void _showColorThemeDialog(BuildContext context, SettingsProvider settings, List<Map<String, dynamic>> colors, AppLocalizations loc) {
+    final parentContext = context;
     showDialog(
       context: context,
       builder: (context) => SimpleDialog(
@@ -566,7 +551,7 @@ class SettingsTab extends StatelessWidget {
           ),
           title: Text(c['name'] as String),
           trailing: settings.colorTheme == c['color'] ? const Icon(Icons.check) : null,
-          onTap: () { settings.setColorTheme(c['color'] as int); Navigator.pop(context); },
+          onTap: () { settings.setColorTheme(c['color'] as int); Navigator.pop(context); ScaffoldMessenger.of(parentContext).showSnackBar(SnackBar(content: Text(loc.tr('saved')), duration: const Duration(milliseconds: 1500))); },
         )).toList(),
       ),
     );
