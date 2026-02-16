@@ -14,10 +14,11 @@ class ExportService {
   final String language;
   final String currency;
   late AppLocalizations _loc;
-  final _currencyFormat = NumberFormat('#,###', 'ko_KR');
+  late final NumberFormat _currencyFormat;
 
   ExportService({required this.language, required this.currency}) {
     _loc = AppLocalizations(language);
+    _currencyFormat = NumberFormat('#,###', AppLocalizations.localeFor(language));
   }
 
   // 통화 포맷
