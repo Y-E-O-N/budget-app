@@ -10,18 +10,7 @@ import '../models/budget.dart';
 import '../models/sub_budget.dart';
 import '../models/expense.dart';
 import '../services/receipt_ocr_service.dart';
-
-class ThousandsSeparatorInputFormatter extends TextInputFormatter {
-  final NumberFormat _formatter = NumberFormat('#,###', 'ko_KR');
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    if (newValue.text.isEmpty) return newValue;
-    final numericString = newValue.text.replaceAll(',', '');
-    if (numericString.isEmpty || int.tryParse(numericString) == null) return oldValue;
-    final formatted = _formatter.format(int.parse(numericString));
-    return TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
-  }
-}
+import '../widgets/shared_styles.dart';
 
 // #25: 지출 내역 정렬 옵션
 enum ExpenseSortOption { dateAsc, dateDesc }
@@ -62,7 +51,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
         final expenses = _getSortedExpenses(rawExpenses);  // #25: 정렬 적용
         final totalExpense = provider.getTotalExpense(widget.budget.id);
         final remaining = widget.budget.amount - totalExpense;
-        final currencyFormat = NumberFormat('#,###', 'ko_KR');
+        final currencyFormat = NumberFormat('#,###', AppLocalizations.localeFor(settings.language));
 
         return Scaffold(
           // #15: 예산 상세에서 월 변경 가능
@@ -379,7 +368,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
   ) async {
     final loc = context.loc;
     final ocrService = ReceiptOcrService(language: language);
-    final formatter = NumberFormat('#,###', 'ko_KR');
+    final formatter = NumberFormat('#,###', AppLocalizations.localeFor(language));
 
     try {
       setLoading(true);
@@ -465,6 +454,7 @@ class _SubBudgetRow extends StatelessWidget {
           Expanded(flex: 2, child: Text(context.formatCurrency(subBudget.amount), style: const TextStyle(fontSize: 13), textAlign: TextAlign.right)),
           Expanded(flex: 2, child: Text(context.formatCurrency(expense), style: const TextStyle(fontSize: 13), textAlign: TextAlign.right)),
           Expanded(flex: 2, child: Text(context.formatCurrency(remaining), style: TextStyle(fontSize: 13, color: remaining < 0 ? Theme.of(context).colorScheme.error : null, fontWeight: remaining < 0 ? FontWeight.w600 : null), textAlign: TextAlign.right)),
+          Icon(Icons.more_vert, size: 16, color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3)),
         ]),
       ),
     );
@@ -556,6 +546,7 @@ class _ExpenseRow extends StatelessWidget {
           const SizedBox(width: 6),
           Expanded(child: Text(expense.memo ?? '-', style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis)),
           ConstrainedBox(constraints: const BoxConstraints(maxWidth: 88), child: Text('-${context.formatCurrency(expense.amount)}', style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.error, fontWeight: FontWeight.w500), textAlign: TextAlign.right)),
+          Icon(Icons.more_vert, size: 16, color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3)),
         ]),
       ),
     );
@@ -591,9 +582,10 @@ class _ExpenseRow extends StatelessWidget {
   void _duplicateExpense(BuildContext context) {
     final loc = context.loc;
     final provider = context.read<BudgetProvider>();
+    final settings = context.read<SettingsProvider>();
     final rootContext = context;  // #38: DatePicker용 외부 context 저장
     DateTime selectedDate = DateTime.now();  // 기본값: 오늘
-    final amountController = TextEditingController(text: NumberFormat('#,###').format(expense.amount));
+    final amountController = TextEditingController(text: NumberFormat('#,###', AppLocalizations.localeFor(settings.language)).format(expense.amount));
     final memoController = TextEditingController(text: expense.memo ?? '');
     String? errorMessage;  // #38: 에러 메시지 추가
 
@@ -704,10 +696,11 @@ class _ExpenseRow extends StatelessWidget {
   void _editExpense(BuildContext context) {
     final loc = context.loc;
     final provider = context.read<BudgetProvider>();
+    final settings = context.read<SettingsProvider>();
     final rootContext = context;  // #38: DatePicker용 외부 context 저장
     final subBudgets = provider.getSubBudgets(expense.budgetId);
     DateTime selectedDate = expense.date;
-    final amountController = TextEditingController(text: NumberFormat('#,###').format(expense.amount));
+    final amountController = TextEditingController(text: NumberFormat('#,###', AppLocalizations.localeFor(settings.language)).format(expense.amount));
     final memoController = TextEditingController(text: expense.memo ?? '');
     String? selectedSubBudgetId = expense.subBudgetId;
     String? errorMessage;
