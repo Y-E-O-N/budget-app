@@ -129,6 +129,8 @@ class RecurringExpense extends HiveObject {
       return todayWeekday == dayOfWeek;
     } else {
       // 매월: 오늘 일자가 설정된 일자와 같은지
+      // dayOfMonth가 null이면 생성하지 않음
+      if (dayOfMonth == null) return false;
       // 월말 처리: 설정일이 현재 월의 마지막 일보다 크면 마지막 일에 생성
       final lastDayOfMonth = DateTime(now.year, now.month + 1, 0).day;
       final targetDay = (dayOfMonth! > lastDayOfMonth) ? lastDayOfMonth : dayOfMonth!;
