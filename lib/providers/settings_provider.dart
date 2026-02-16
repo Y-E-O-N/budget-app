@@ -9,7 +9,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 
 class SettingsProvider extends ChangeNotifier {
-  late Box _settingsBox;
+  Box? _settingsBox;
   final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
 
   // 민감 데이터용 보안 저장소 (API 키 등)
@@ -28,24 +28,24 @@ class SettingsProvider extends ChangeNotifier {
   static const double defaultFontSize = 1.0;
   static const int defaultColorTheme = 0xFF6366F1;
 
-  // Getters
-  String get currency => _settingsBox.get('currency', defaultValue: defaultCurrency);
-  String get startDayOfWeek => _settingsBox.get('startDayOfWeek', defaultValue: defaultStartDayOfWeek);
-  int get monthStartDay => _settingsBox.get('monthStartDay', defaultValue: defaultMonthStartDay);
-  String get language => _settingsBox.get('language', defaultValue: defaultLanguage);
-  String get themeModeSetting => _settingsBox.get('themeMode', defaultValue: defaultThemeMode);
-  double get fontSizeScale => _settingsBox.get('fontSize', defaultValue: defaultFontSize);
-  int get colorTheme => _settingsBox.get('colorTheme', defaultValue: defaultColorTheme);
+  // Getters (null-safe: init() 전에도 기본값 반환)
+  String get currency => _settingsBox?.get('currency', defaultValue: defaultCurrency) ?? defaultCurrency;
+  String get startDayOfWeek => _settingsBox?.get('startDayOfWeek', defaultValue: defaultStartDayOfWeek) ?? defaultStartDayOfWeek;
+  int get monthStartDay => _settingsBox?.get('monthStartDay', defaultValue: defaultMonthStartDay) ?? defaultMonthStartDay;
+  String get language => _settingsBox?.get('language', defaultValue: defaultLanguage) ?? defaultLanguage;
+  String get themeModeSetting => _settingsBox?.get('themeMode', defaultValue: defaultThemeMode) ?? defaultThemeMode;
+  double get fontSizeScale => _settingsBox?.get('fontSize', defaultValue: defaultFontSize) ?? defaultFontSize;
+  int get colorTheme => _settingsBox?.get('colorTheme', defaultValue: defaultColorTheme) ?? defaultColorTheme;
 
   // Gemini API 키 (보안 저장소에서 관리)
   String get geminiApiKey => _geminiApiKey;
 
-  // 알림 설정
-  bool get dailyReminderEnabled => _settingsBox.get('dailyReminderEnabled', defaultValue: false);
-  int get dailyReminderHour => _settingsBox.get('dailyReminderHour', defaultValue: 21);
-  int get dailyReminderMinute => _settingsBox.get('dailyReminderMinute', defaultValue: 0);
-  bool get budgetAlertEnabled => _settingsBox.get('budgetAlertEnabled', defaultValue: true);
-  int get budgetAlertThreshold => _settingsBox.get('budgetAlertThreshold', defaultValue: 80);
+  // 알림 설정 (null-safe)
+  bool get dailyReminderEnabled => _settingsBox?.get('dailyReminderEnabled', defaultValue: false) ?? false;
+  int get dailyReminderHour => _settingsBox?.get('dailyReminderHour', defaultValue: 21) ?? 21;
+  int get dailyReminderMinute => _settingsBox?.get('dailyReminderMinute', defaultValue: 0) ?? 0;
+  bool get budgetAlertEnabled => _settingsBox?.get('budgetAlertEnabled', defaultValue: true) ?? true;
+  int get budgetAlertThreshold => _settingsBox?.get('budgetAlertThreshold', defaultValue: 80) ?? 80;
 
   ThemeMode get themeMode {
     switch (themeModeSetting) {
@@ -74,13 +74,13 @@ class SettingsProvider extends ChangeNotifier {
 
   // 기존 Hive API 키를 보안 저장소로 마이그레이션
   Future<void> _migrateApiKeyToSecureStorage() async {
-    final oldKey = _settingsBox.get('geminiApiKey', defaultValue: '');
+    final oldKey = _settingsBox?.get('geminiApiKey', defaultValue: '') ?? '';
     if (oldKey.isNotEmpty && _geminiApiKey.isEmpty) {
       // 보안 저장소로 이동
       await _secureStorage.write(key: 'geminiApiKey', value: oldKey);
       _geminiApiKey = oldKey;
       // 기존 Hive에서 삭제
-      await _settingsBox.delete('geminiApiKey');
+      await _settingsBox?.delete('geminiApiKey');
     }
   }
 
@@ -97,43 +97,43 @@ class SettingsProvider extends ChangeNotifier {
 
   // 통화 설정
   Future<void> setCurrency(String value) async {
-    await _settingsBox.put('currency', value);
+    await _settingsBox?.put('currency', value);
     notifyListeners();
   }
 
   // 시작 요일 설정
   Future<void> setStartDayOfWeek(String value) async {
-    await _settingsBox.put('startDayOfWeek', value);
+    await _settingsBox?.put('startDayOfWeek', value);
     notifyListeners();
   }
 
   // 월 시작일 설정
   Future<void> setMonthStartDay(int value) async {
-    await _settingsBox.put('monthStartDay', value);
+    await _settingsBox?.put('monthStartDay', value);
     notifyListeners();
   }
 
   // 언어 설정
   Future<void> setLanguage(String value) async {
-    await _settingsBox.put('language', value);
+    await _settingsBox?.put('language', value);
     notifyListeners();
   }
 
   // 테마 모드 설정
   Future<void> setThemeMode(String value) async {
-    await _settingsBox.put('themeMode', value);
+    await _settingsBox?.put('themeMode', value);
     notifyListeners();
   }
 
   // 글꼴 크기 설정
   Future<void> setFontSizeScale(double value) async {
-    await _settingsBox.put('fontSize', value);
+    await _settingsBox?.put('fontSize', value);
     notifyListeners();
   }
 
   // 색상 테마 설정
   Future<void> setColorTheme(int value) async {
-    await _settingsBox.put('colorTheme', value);
+    await _settingsBox?.put('colorTheme', value);
     notifyListeners();
   }
 
@@ -146,9 +146,9 @@ class SettingsProvider extends ChangeNotifier {
 
   // 일일 알림 설정
   Future<void> setDailyReminder(bool enabled, {int? hour, int? minute}) async {
-    await _settingsBox.put('dailyReminderEnabled', enabled);
-    if (hour != null) await _settingsBox.put('dailyReminderHour', hour);
-    if (minute != null) await _settingsBox.put('dailyReminderMinute', minute);
+    await _settingsBox?.put('dailyReminderEnabled', enabled);
+    if (hour != null) await _settingsBox?.put('dailyReminderHour', hour);
+    if (minute != null) await _settingsBox?.put('dailyReminderMinute', minute);
 
     if (enabled) {
       await _scheduleDailyReminder();
@@ -190,8 +190,8 @@ class SettingsProvider extends ChangeNotifier {
 
   // 예산 초과 알림 설정
   Future<void> setBudgetAlert(bool enabled, {int? threshold}) async {
-    await _settingsBox.put('budgetAlertEnabled', enabled);
-    if (threshold != null) await _settingsBox.put('budgetAlertThreshold', threshold);
+    await _settingsBox?.put('budgetAlertEnabled', enabled);
+    if (threshold != null) await _settingsBox?.put('budgetAlertThreshold', threshold);
     notifyListeners();
   }
 
