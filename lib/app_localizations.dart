@@ -37,6 +37,7 @@ class AppLocalizations {
       'addBudget': '예산 추가',
       'editBudget': '예산 수정',
       'addBudgetPlease': '예산을 추가해주세요',
+      'addFirstBudget': '첫 예산을 추가해보세요',
       'applyMonthly': '매달 적용',
       'applyMonthlyDesc': '이후 모든 달에 자동 적용',
       'numberOnlyError': '숫자만 입력 가능합니다',
@@ -310,6 +311,7 @@ class AppLocalizations {
       'addBudget': 'Add Budget',
       'editBudget': 'Edit Budget',
       'addBudgetPlease': 'Please add a budget',
+      'addFirstBudget': 'Add your first budget',
       'applyMonthly': 'Apply Monthly',
       'applyMonthlyDesc': 'Auto-apply to future months',
       'numberOnlyError': 'Numbers only',
@@ -583,6 +585,7 @@ class AppLocalizations {
       'addBudget': '予算追加',
       'editBudget': '予算編集',
       'addBudgetPlease': '予算を追加してください',
+      'addFirstBudget': '最初の予算を追加しましょう',
       'applyMonthly': '毎月適用',
       'applyMonthlyDesc': '以降の月に自動適用',
       'numberOnlyError': '数字のみ',
@@ -832,12 +835,40 @@ class AppLocalizations {
   final String language;
   AppLocalizations(this.language);
 
+  /// 언어 코드에 대응하는 NumberFormat 로캘 반환
+  static String localeFor(String language) {
+    switch (language) {
+      case 'en': return 'en_US';
+      case 'ja': return 'ja_JP';
+      default: return 'ko_KR';
+    }
+  }
+
   String tr(String key) {
     return _localizedValues[language]?[key] ?? _localizedValues['ko']![key] ?? key;
   }
 
+  /// 영어 ordinal suffix 지원하는 일자 포맷 (예: 1st, 2nd, 3rd, 15th)
+  String formatDayOfMonth(int day) {
+    if (language == 'en') {
+      String suffix;
+      if (day >= 11 && day <= 13) {
+        suffix = 'th';
+      } else {
+        switch (day % 10) {
+          case 1: suffix = 'st';
+          case 2: suffix = 'nd';
+          case 3: suffix = 'rd';
+          default: suffix = 'th';
+        }
+      }
+      return '$day$suffix';
+    }
+    return '$day${tr('dayUnit')}';
+  }
+
   String formatCurrency(int amount, String currencySymbol) {
-    final formatted = NumberFormat('#,###', 'ko_KR').format(amount);
+    final formatted = NumberFormat('#,###', localeFor(language)).format(amount);
     if (currencySymbol == '₩') {
       return '$formatted원';
     }
