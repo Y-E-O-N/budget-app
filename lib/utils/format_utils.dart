@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 class FormatUtils {
   FormatUtils._();
 
-  static final _numberFormat = NumberFormat('#,###', 'ko_KR');
+  static final _numberFormat = NumberFormat('#,###', 'en_US');
 
   /// 숫자를 천 단위 구분자로 포맷
   static String formatNumber(int number) {
