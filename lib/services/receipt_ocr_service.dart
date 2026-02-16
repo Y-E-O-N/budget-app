@@ -1,6 +1,7 @@
 // =============================================================================
 // receipt_ocr_service.dart - 영수증 OCR 서비스
 // =============================================================================
+import 'dart:async';
 import 'dart:io';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
@@ -69,6 +70,17 @@ class ReceiptOcrService {
   final ImagePicker _picker = ImagePicker();
   final TextRecognizer _textRecognizer = TextRecognizer(script: TextRecognitionScript.korean);
 
+  // 정적 RegExp (한 번만 컴파일)
+  static final _keywordPatterns = [
+    RegExp(r'(?:결제\s*금액|카드\s*결제|현금\s*결제|총\s*결제|합\s*계\s*금액)[:\s]*([0-9,]+)\s*원?', caseSensitive: false),
+    RegExp(r'(?:총\s*액|합\s*계|Total|TOTAL)[:\s]*([0-9,]+)\s*원?', caseSensitive: false),
+    RegExp(r'(?:받을\s*금액|받으실\s*금액)[:\s]*([0-9,]+)\s*원?', caseSensitive: false),
+  ];
+  static final _amountPattern = RegExp(r'([0-9]{1,3}(?:,[0-9]{3})+)\s*원?');
+  static final _fullYearPattern = RegExp(r'(20[2-9][0-9])[.\-/]([01]?[0-9])[.\-/]([0-3]?[0-9])');
+  static final _shortYearPattern = RegExp(r'([2-9][0-9])[.\-/]([01]?[0-9])[.\-/]([0-3]?[0-9])');
+  static final _koreanDatePattern = RegExp(r'(20[2-9][0-9])년\s*([01]?[0-9])월\s*([0-3]?[0-9])일');
+
   ReceiptOcrService({required this.language});
 
   // 리소스 해제
@@ -99,9 +111,10 @@ class ReceiptOcrService {
   /// 영수증 처리 (Result 버전)
   Future<Result<OcrData>> process(File imageFile) async {
     try {
-      // ML Kit으로 텍스트 인식
+      // ML Kit으로 텍스트 인식 (15초 타임아웃)
       final inputImage = InputImage.fromFile(imageFile);
-      final RecognizedText recognizedText = await _textRecognizer.processImage(inputImage);
+      final RecognizedText recognizedText = await _textRecognizer.processImage(inputImage)
+          .timeout(const Duration(seconds: 15));
       final String text = recognizedText.text;
 
       // 텍스트가 비어있으면 실패
@@ -147,7 +160,8 @@ class ReceiptOcrService {
   Future<ReceiptOcrResult> processReceipt(File imageFile) async {
     try {
       final inputImage = InputImage.fromFile(imageFile);
-      final RecognizedText recognizedText = await _textRecognizer.processImage(inputImage);
+      final RecognizedText recognizedText = await _textRecognizer.processImage(inputImage)
+          .timeout(const Duration(seconds: 15));
       final String text = recognizedText.text;
 
       if (text.isEmpty) {
@@ -165,17 +179,10 @@ class ReceiptOcrService {
 
   // 금액 파싱 (한국 영수증 패턴)
   int? _parseAmount(String text) {
-    // 줄 단위로 분리
     final lines = text.split('\n');
 
-    // 패턴 1: "결제금액", "카드결제", "총결제" 등 키워드가 포함된 줄
-    final keywordPatterns = [
-      RegExp(r'(?:결제\s*금액|카드\s*결제|현금\s*결제|총\s*결제|합\s*계\s*금액)[:\s]*([0-9,]+)\s*원?', caseSensitive: false),
-      RegExp(r'(?:총\s*액|합\s*계|Total|TOTAL)[:\s]*([0-9,]+)\s*원?', caseSensitive: false),
-      RegExp(r'(?:받을\s*금액|받으실\s*금액)[:\s]*([0-9,]+)\s*원?', caseSensitive: false),
-    ];
-
-    for (final pattern in keywordPatterns) {
+    // 패턴 1: 키워드 매칭
+    for (final pattern in _keywordPatterns) {
       final match = pattern.firstMatch(text);
       if (match != null) {
         final amountStr = match.group(1)?.replaceAll(',', '');
@@ -186,10 +193,8 @@ class ReceiptOcrService {
 
     // 패턴 2: 줄에서 가장 큰 금액 찾기 (1,000 이상)
     int? maxAmount;
-    final amountPattern = RegExp(r'([0-9]{1,3}(?:,[0-9]{3})+)\s*원?');
-
     for (final line in lines) {
-      final matches = amountPattern.allMatches(line);
+      final matches = _amountPattern.allMatches(line);
       for (final match in matches) {
         final amountStr = match.group(1)?.replaceAll(',', '');
         final amount = int.tryParse(amountStr ?? '');
@@ -207,8 +212,7 @@ class ReceiptOcrService {
   // 날짜 파싱
   DateTime? _parseDate(String text) {
     // 패턴 1: yyyy.MM.dd 또는 yyyy-MM-dd 또는 yyyy/MM/dd
-    final fullYearPattern = RegExp(r'(20[2-9][0-9])[.\-/]([01]?[0-9])[.\-/]([0-3]?[0-9])');
-    final match1 = fullYearPattern.firstMatch(text);
+    final match1 = _fullYearPattern.firstMatch(text);
     if (match1 != null) {
       final year = int.tryParse(match1.group(1) ?? '');
       final month = int.tryParse(match1.group(2) ?? '');
@@ -219,8 +223,7 @@ class ReceiptOcrService {
     }
 
     // 패턴 2: yy.MM.dd 또는 yy-MM-dd 또는 yy/MM/dd
-    final shortYearPattern = RegExp(r'([2-9][0-9])[.\-/]([01]?[0-9])[.\-/]([0-3]?[0-9])');
-    final match2 = shortYearPattern.firstMatch(text);
+    final match2 = _shortYearPattern.firstMatch(text);
     if (match2 != null) {
       final year = 2000 + (int.tryParse(match2.group(1) ?? '') ?? 0);
       final month = int.tryParse(match2.group(2) ?? '');
@@ -231,8 +234,7 @@ class ReceiptOcrService {
     }
 
     // 패턴 3: yyyy년 MM월 dd일
-    final koreanPattern = RegExp(r'(20[2-9][0-9])년\s*([01]?[0-9])월\s*([0-3]?[0-9])일');
-    final match3 = koreanPattern.firstMatch(text);
+    final match3 = _koreanDatePattern.firstMatch(text);
     if (match3 != null) {
       final year = int.tryParse(match3.group(1) ?? '');
       final month = int.tryParse(match3.group(2) ?? '');
