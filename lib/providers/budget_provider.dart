@@ -217,23 +217,16 @@ class BudgetProvider extends ChangeNotifier {
   /// 예산 삭제
   /// 예산을 삭제하면 관련된 세부예산과 지출도 함께 삭제됩니다
   Future<void> deleteBudget(String id) async {
-    // 1. 예산 삭제
+    // 관련 ID 수집 후 배치 삭제
+    final subIds = _subBudgetBox.values
+        .where((s) => s.budgetId == id).map((s) => s.id).toList();
+    final expIds = _expenseBox.values
+        .where((e) => e.budgetId == id).map((e) => e.id).toList();
+
     await _budgetBox.delete(id);
-    
-    // 2. 관련 세부예산 찾기 및 삭제
-    final subBudgetsToDelete =
-        _subBudgetBox.values.where((s) => s.budgetId == id).toList();
-    for (var sub in subBudgetsToDelete) {
-      await _subBudgetBox.delete(sub.id);
-    }
-    
-    // 3. 관련 지출 찾기 및 삭제
-    final expensesToDelete =
-        _expenseBox.values.where((e) => e.budgetId == id).toList();
-    for (var exp in expensesToDelete) {
-      await _expenseBox.delete(exp.id);
-    }
-    
+    await _subBudgetBox.deleteAll(subIds);
+    await _expenseBox.deleteAll(expIds);
+
     notifyListeners();
   }
 
@@ -568,29 +561,27 @@ class BudgetProvider extends ChangeNotifier {
 
   /// 예산별 최근 N개월 지출 데이터 (타입 안전 버전)
   List<BudgetTrendData> getBudgetTrendByMonth(int months) {
-    // 현재 월의 예산 목록 가져오기
     final budgets = currentBudgets;
-
-    // AppDateUtils로 월 목록 생성 (오래된 순)
     final monthList = AppDateUtils.getMonthsBack(_currentYear, _currentMonth, months);
 
-    return budgets.map((budget) {
-      // 각 월별 지출 계산
-      final monthlyData = monthList.map((m) {
-        // 해당 월에 같은 이름의 예산 찾기
-        final matchingBudget = _budgetBox.values.firstWhere(
-          (b) => b.name == budget.name && b.year == m.year && b.month == m.month,
-          orElse: () => Budget(id: '', name: '', amount: 0, year: 0, month: 0),
-        );
+    // Map 사전 구축: "이름\x00년\x00월" → Budget (null 문자로 키 충돌 방지)
+    final budgetLookup = <String, Budget>{};
+    for (final b in _budgetBox.values) {
+      budgetLookup['${b.name}\x00${b.year}\x00${b.month}'] = b;
+    }
 
-        // 예산이 없으면 0, 있으면 지출 합계 계산
-        if (matchingBudget.id.isEmpty) return 0;
-        return _expenseBox.values
-            .where((e) =>
-                e.budgetId == matchingBudget.id &&
-                e.date.year == m.year &&
-                e.date.month == m.month)
-            .fold(0, (sum, e) => sum + e.amount);
+    // Map 사전 구축: "budgetId\x00년\x00월" → 지출 합계
+    final expenseSumLookup = <String, int>{};
+    for (final e in _expenseBox.values) {
+      final key = '${e.budgetId}\x00${e.date.year}\x00${e.date.month}';
+      expenseSumLookup[key] = (expenseSumLookup[key] ?? 0) + e.amount;
+    }
+
+    return budgets.map((budget) {
+      final monthlyData = monthList.map((m) {
+        final matchingBudget = budgetLookup['${budget.name}\x00${m.year}\x00${m.month}'];
+        if (matchingBudget == null) return 0;
+        return expenseSumLookup['${matchingBudget.id}\x00${m.year}\x00${m.month}'] ?? 0;
       }).toList();
 
       return BudgetTrendData(
