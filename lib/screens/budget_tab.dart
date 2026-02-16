@@ -6,47 +6,8 @@ import '../app_localizations.dart';
 import '../providers/budget_provider.dart';
 import '../providers/settings_provider.dart';
 import '../models/budget.dart';
+import '../widgets/shared_styles.dart';
 import 'budget_detail_screen.dart';
-
-// 천 단위 콤마 포맷터
-class ThousandsSeparatorInputFormatter extends TextInputFormatter {
-  final NumberFormat _formatter = NumberFormat('#,###', 'ko_KR');
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    if (newValue.text.isEmpty) return newValue;
-    final numericString = newValue.text.replaceAll(',', '');
-    if (numericString.isEmpty || int.tryParse(numericString) == null) return oldValue;
-    final formatted = _formatter.format(int.parse(numericString));
-    return TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
-  }
-}
-
-// =============================================================================
-// 스프레드시트 스타일 상수
-// =============================================================================
-class _SheetStyle {
-  static const double borderWidth = 1.0;  // 실선 두께
-  static const double cellPaddingH = 8.0;  // 셀 가로 패딩
-  static const double cellPaddingV = 10.0;  // 셀 세로 패딩
-  static const double fontSize = 13.0;  // 기본 폰트 크기
-  static const double headerFontSize = 12.0;  // 헤더 폰트 크기
-
-  // 셀 테두리 색상
-  static Color borderColor(BuildContext context) =>
-    Theme.of(context).dividerColor.withValues(alpha: 0.5);
-
-  // 헤더 배경색
-  static Color headerBg(BuildContext context) =>
-    Theme.of(context).colorScheme.surfaceContainerHighest;
-
-  // 짝수 행 배경색
-  static Color evenRowBg(BuildContext context) =>
-    Theme.of(context).colorScheme.surface;
-
-  // 홀수 행 배경색
-  static Color oddRowBg(BuildContext context) =>
-    Theme.of(context).colorScheme.surfaceContainerLowest;
-}
 
 // #2: 예산 정렬 옵션 (#3: order 추가)
 enum BudgetSortOption { order, name, nameDesc, amount, amountDesc, used, usedDesc, remaining, remainingDesc }
@@ -135,7 +96,11 @@ class _BudgetTabState extends State<BudgetTab> {
                     ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                         Icon(Icons.table_chart_outlined, size: 64, color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.5)),
                         const SizedBox(height: 16),
-                        Text(loc.tr('addBudgetPlease'), style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.7))),
+                        FilledButton.icon(
+                          onPressed: () => _showAddBudgetDialog(context),
+                          icon: const Icon(Icons.add),
+                          label: Text(loc.tr('addFirstBudget')),
+                        ),
                       ]))
                     : _buildDataTable(context, loc, sortedBudgets, provider),
               ),
@@ -148,12 +113,12 @@ class _BudgetTabState extends State<BudgetTab> {
 
   // 요약 테이블 (상단)
   Widget _buildSummaryTable(BuildContext context, AppLocalizations loc, int totalBudget, int totalExpense, int totalRemaining) {
-    final border = BorderSide(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth);
+    final border = BorderSide(color: SheetStyle.borderColor(context), width: SheetStyle.borderWidth);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(8, 8, 8, 0),
       decoration: BoxDecoration(
-        border: Border.all(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth),
+        border: Border.all(color: SheetStyle.borderColor(context), width: SheetStyle.borderWidth),
       ),
       child: Table(
         border: TableBorder(
@@ -168,7 +133,7 @@ class _BudgetTabState extends State<BudgetTab> {
         children: [
           // 헤더 행 (#19: 중앙 정렬)
           TableRow(
-            decoration: BoxDecoration(color: _SheetStyle.headerBg(context)),
+            decoration: BoxDecoration(color: SheetStyle.headerBg(context)),
             children: [
               _buildCell(loc.tr('budget'), isHeader: true, context: context, align: TextAlign.center),
               _buildCell(loc.tr('used'), isHeader: true, context: context, align: TextAlign.center),
@@ -177,7 +142,7 @@ class _BudgetTabState extends State<BudgetTab> {
           ),
           // 데이터 행
           TableRow(
-            decoration: BoxDecoration(color: _SheetStyle.evenRowBg(context)),
+            decoration: BoxDecoration(color: SheetStyle.evenRowBg(context)),
             children: [
               _buildCell(context.formatCurrency(totalBudget), context: context, align: TextAlign.right),
               _buildCell(context.formatCurrency(totalExpense), context: context, align: TextAlign.right),
@@ -197,12 +162,12 @@ class _BudgetTabState extends State<BudgetTab> {
 
   // 데이터 테이블 (메인)
   Widget _buildDataTable(BuildContext context, AppLocalizations loc, List<Budget> budgets, BudgetProvider provider) {
-    final border = BorderSide(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth);
+    final border = BorderSide(color: SheetStyle.borderColor(context), width: SheetStyle.borderWidth);
 
     return Container(
       margin: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        border: Border.all(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth),
+        border: Border.all(color: SheetStyle.borderColor(context), width: SheetStyle.borderWidth),
       ),
       child: Column(
         children: [
@@ -217,7 +182,7 @@ class _BudgetTabState extends State<BudgetTab> {
             },
             children: [
               TableRow(
-                decoration: BoxDecoration(color: _SheetStyle.headerBg(context)),
+                decoration: BoxDecoration(color: SheetStyle.headerBg(context)),
                 children: [
                   _buildSortableHeaderCell(loc.tr('budgetName'), BudgetSortOption.name, BudgetSortOption.nameDesc, context, align: TextAlign.center),  // #19: 중앙 정렬
                   _buildSortableHeaderCell(loc.tr('budget'), BudgetSortOption.amount, BudgetSortOption.amountDesc, context, align: TextAlign.center),
@@ -260,13 +225,13 @@ class _BudgetTabState extends State<BudgetTab> {
   }) {
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: _SheetStyle.cellPaddingH,
-        vertical: _SheetStyle.cellPaddingV,
+        horizontal: SheetStyle.cellPaddingH,
+        vertical: SheetStyle.cellPaddingV,
       ),
       child: Text(
         text,
         style: TextStyle(
-          fontSize: isHeader ? _SheetStyle.headerFontSize : _SheetStyle.fontSize,
+          fontSize: isHeader ? SheetStyle.headerFontSize : SheetStyle.fontSize,
           fontWeight: isHeader || bold ? FontWeight.w600 : FontWeight.normal,
           color: textColor ?? (isHeader
             ? Theme.of(context).colorScheme.onSurfaceVariant
@@ -298,8 +263,8 @@ class _BudgetTabState extends State<BudgetTab> {
       },
       child: Container(
         padding: EdgeInsets.symmetric(
-          horizontal: _SheetStyle.cellPaddingH,
-          vertical: _SheetStyle.cellPaddingV,
+          horizontal: SheetStyle.cellPaddingH,
+          vertical: SheetStyle.cellPaddingV,
         ),
         child: Row(
           mainAxisAlignment: align == TextAlign.center ? MainAxisAlignment.center : MainAxisAlignment.start,
@@ -309,21 +274,21 @@ class _BudgetTabState extends State<BudgetTab> {
               child: Text(
                 text,
                 style: TextStyle(
-                  fontSize: _SheetStyle.headerFontSize,
+                  fontSize: SheetStyle.headerFontSize,
                   fontWeight: FontWeight.w600,
                   color: isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (isActive) ...[
-              const SizedBox(width: 2),
-              Icon(
-                isAsc ? Icons.arrow_upward : Icons.arrow_downward,
-                size: 12,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ],
+            const SizedBox(width: 2),
+            Icon(
+              isActive
+                ? (isAsc ? Icons.arrow_upward : Icons.arrow_downward)
+                : Icons.unfold_more,
+              size: isActive ? 12 : 10,
+              color: isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+            ),
           ],
         ),
       ),
@@ -479,7 +444,7 @@ class _BudgetRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final border = BorderSide(color: _SheetStyle.borderColor(context), width: _SheetStyle.borderWidth);
+    final border = BorderSide(color: SheetStyle.borderColor(context), width: SheetStyle.borderWidth);
 
     return InkWell(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => BudgetDetailScreen(budget: budget))),
@@ -498,18 +463,18 @@ class _BudgetRow extends StatelessWidget {
         children: [
           TableRow(
             decoration: BoxDecoration(
-              color: isEven ? _SheetStyle.evenRowBg(context) : _SheetStyle.oddRowBg(context),
+              color: isEven ? SheetStyle.evenRowBg(context) : SheetStyle.oddRowBg(context),
             ),
             children: [
               // 예산명 (반복 아이콘 제거 #7)
               Container(
                 padding: EdgeInsets.symmetric(
-                  horizontal: _SheetStyle.cellPaddingH,
-                  vertical: _SheetStyle.cellPaddingV,
+                  horizontal: SheetStyle.cellPaddingH,
+                  vertical: SheetStyle.cellPaddingV,
                 ),
                 child: Text(
                   budget.name,
-                  style: TextStyle(fontSize: _SheetStyle.fontSize),
+                  style: TextStyle(fontSize: SheetStyle.fontSize),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -518,11 +483,28 @@ class _BudgetRow extends StatelessWidget {
               // 사용액
               _buildDataCell(context.formatCurrency(expense), context),
               // 잔액
-              _buildDataCell(
-                context.formatCurrency(remaining),
-                context,
-                textColor: remaining < 0 ? Theme.of(context).colorScheme.error : null,
-                bold: remaining < 0,
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: SheetStyle.cellPaddingH,
+                  vertical: SheetStyle.cellPaddingV,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        context.formatCurrency(remaining),
+                        style: TextStyle(
+                          fontSize: SheetStyle.fontSize,
+                          color: remaining < 0 ? Theme.of(context).colorScheme.error : null,
+                          fontWeight: remaining < 0 ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                        textAlign: TextAlign.right,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Icon(Icons.more_vert, size: 16, color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3)),
+                  ],
+                ),
               ),
             ],
           ),
@@ -534,13 +516,13 @@ class _BudgetRow extends StatelessWidget {
   Widget _buildDataCell(String text, BuildContext context, {Color? textColor, bool bold = false}) {
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: _SheetStyle.cellPaddingH,
-        vertical: _SheetStyle.cellPaddingV,
+        horizontal: SheetStyle.cellPaddingH,
+        vertical: SheetStyle.cellPaddingV,
       ),
       child: Text(
         text,
         style: TextStyle(
-          fontSize: _SheetStyle.fontSize,
+          fontSize: SheetStyle.fontSize,
           color: textColor,
           fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
         ),
@@ -582,7 +564,8 @@ class _BudgetRow extends StatelessWidget {
   void _showEditDialog(BuildContext context) {
     final loc = context.loc;
     final nameController = TextEditingController(text: budget.name);
-    final amountController = TextEditingController(text: NumberFormat('#,###', 'ko_KR').format(budget.amount));
+    final settings = context.read<SettingsProvider>();
+    final amountController = TextEditingController(text: NumberFormat('#,###', AppLocalizations.localeFor(settings.language)).format(budget.amount));
     bool isRecurring = budget.isRecurring;
     String? errorMessage;
 
