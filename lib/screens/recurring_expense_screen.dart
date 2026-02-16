@@ -149,7 +149,7 @@ class RecurringExpenseScreen extends StatelessWidget {
       ];
       return '${loc.tr('everyWeek')} ${weekdays[recurring.dayOfWeek ?? 0]}';
     } else {
-      return '${loc.tr('everyMonth')} ${recurring.dayOfMonth}${loc.tr('dayUnit')}';
+      return '${loc.tr('everyMonth')} ${loc.formatDayOfMonth(recurring.dayOfMonth)}';
     }
   }
 
@@ -312,7 +312,7 @@ class RecurringExpenseScreen extends StatelessWidget {
                           isExpanded: true,
                           value: dayOfMonth,
                           items: List.generate(31, (i) => i + 1)
-                              .map((d) => DropdownMenuItem(value: d, child: Text('$d${loc.tr('dayUnit')}')))
+                              .map((d) => DropdownMenuItem(value: d, child: Text(loc.formatDayOfMonth(d))))
                               .toList(),
                           onChanged: (v) => setDialogState(() => dayOfMonth = v!),
                         ),
