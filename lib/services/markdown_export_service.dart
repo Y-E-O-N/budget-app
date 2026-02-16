@@ -2,6 +2,7 @@
 // markdown_export_service.dart - 마크다운 형식 데이터 변환 서비스
 // =============================================================================
 import 'package:intl/intl.dart';
+import '../app_localizations.dart';
 import '../models/budget.dart';
 import '../models/sub_budget.dart';
 import '../models/expense.dart';
@@ -9,9 +10,10 @@ import '../models/expense.dart';
 class MarkdownExportService {
   final String language;
   final String currency;
-  final _numberFormat = NumberFormat('#,###', 'ko_KR');
+  final NumberFormat _numberFormat;
 
-  MarkdownExportService({required this.language, required this.currency});
+  MarkdownExportService({required this.language, required this.currency})
+    : _numberFormat = NumberFormat('#,###', AppLocalizations.localeFor(language));
 
   // 통화 포맷
   String _formatAmount(int amount) {
