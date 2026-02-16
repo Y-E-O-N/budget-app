@@ -205,23 +205,30 @@ class _AnalysisResultScreenState extends State<AnalysisResultScreen> {
   }
 
   Widget _buildListSectionCard(BuildContext context, {required String title, required IconData icon, required Color iconColor, required List<String> items}) {
-    return _buildSectionCard(
-      context,
-      title: title,
-      icon: icon,
-      iconColor: iconColor,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: items.map((item) => Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('• ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-              Expanded(child: Text(item, style: const TextStyle(fontSize: 14, height: 1.4))),
-            ],
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        leading: Icon(icon, size: 18, color: iconColor),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        initiallyExpanded: false,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: items.map((item) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('• ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    Expanded(child: Text(item, style: const TextStyle(fontSize: 14, height: 1.4))),
+                  ],
+                ),
+              )).toList(),
+            ),
           ),
-        )).toList(),
+        ],
       ),
     );
   }
