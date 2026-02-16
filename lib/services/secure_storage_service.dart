@@ -18,16 +18,24 @@ class SecureStorageService {
   static const _encryptionKeyName = 'hive_encryption_key';
 
   /// Hive 암호화 키 생성 또는 불러오기
+  /// 기존 키가 손상된 경우 예외를 발생시킴 (데이터 손실 방지)
   static Future<Uint8List> getEncryptionKey() async {
-    // 기존 키가 있으면 불러오기
     final existingKey = await _storage.read(key: _encryptionKeyName);
     if (existingKey != null) {
-      return base64Decode(existingKey);
+      try {
+        final decoded = base64Decode(existingKey);
+        if (decoded.length == 32) return decoded;
+        // 길이 불일치 → 기존 데이터가 있을 수 있으므로 예외 발생
+        throw const FormatException('Encryption key is not 32 bytes');
+      } catch (e) {
+        if (e is FormatException) rethrow;
+        // base64 디코딩 실패 → 키 손상
+        throw FormatException('Encryption key is corrupted: $e');
+      }
     }
 
-    // 새 키 생성 (32바이트 = 256비트)
+    // 키가 없음 → 최초 생성 (안전)
     final newKey = Hive.generateSecureKey();
-    // 안전한 저장소에 저장
     await _storage.write(key: _encryptionKeyName, value: base64Encode(newKey));
     return Uint8List.fromList(newKey);
   }
