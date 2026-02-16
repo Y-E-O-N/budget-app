@@ -5,6 +5,7 @@
 // =============================================================================
 
 import 'package:flutter/foundation.dart';
+import '../models/budget.dart';
 import '../models/trend_data.dart';
 import '../utils/date_utils.dart';
 import 'budget_provider.dart';
@@ -67,23 +68,24 @@ class TrendProvider extends ChangeNotifier {
     final budgets = _budgetProvider.currentBudgets;
     final monthList = AppDateUtils.getMonthsBack(currentYear, currentMonth, months);
 
+    // Map 사전 구축: "이름\x00년\x00월" → Budget (null 문자로 키 충돌 방지)
+    final budgetLookup = <String, Budget>{};
+    for (final b in _budgetProvider.allBudgets) {
+      budgetLookup['${b.name}\x00${b.year}\x00${b.month}'] = b;
+    }
+
+    // Map 사전 구축: "budgetId\x00년\x00월" → 지출 합계
+    final expenseSumLookup = <String, int>{};
+    for (final e in _budgetProvider.allExpenses) {
+      final key = '${e.budgetId}\x00${e.date.year}\x00${e.date.month}';
+      expenseSumLookup[key] = (expenseSumLookup[key] ?? 0) + e.amount;
+    }
+
     return budgets.map((budget) {
       final monthlyData = monthList.map((m) {
-        // 해당 월에 같은 이름의 예산 찾기
-        final matchingBudget = _budgetProvider.allBudgets.firstWhere(
-          (b) => b.name == budget.name && b.year == m.year && b.month == m.month,
-          orElse: () => budget.copyWith(id: '', amount: 0),
-        );
-
-        if (matchingBudget.id.isEmpty) return 0;
-
-        // 해당 예산의 지출 합계
-        return _budgetProvider.allExpenses
-            .where((e) =>
-                e.budgetId == matchingBudget.id &&
-                e.date.year == m.year &&
-                e.date.month == m.month)
-            .fold(0, (sum, e) => sum + e.amount);
+        final matchingBudget = budgetLookup['${budget.name}\x00${m.year}\x00${m.month}'];
+        if (matchingBudget == null) return 0;
+        return expenseSumLookup['${matchingBudget.id}\x00${m.year}\x00${m.month}'] ?? 0;
       }).toList();
 
       return BudgetTrendData(
